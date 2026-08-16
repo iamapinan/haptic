@@ -17,9 +17,26 @@
     --radius-sm: 8px;
     --radius-md: 14px;
     --radius-lg: 22px;
-    --radius-full: 9999px;
+    --font-main: 'Plus Jakarta Sans', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Outfit', 'Noto Sans Thai', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-thai: 'Noto Sans Thai', 'Plus Jakarta Sans', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     
     --transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html[lang="th"] {
+    font-family: var(--font-thai);
+}
+
+html[lang="th"] .hero-title,
+html[lang="th"] .section-title,
+html[lang="th"] h1,
+html[lang="th"] h2,
+html[lang="th"] h3 {
+    font-family: var(--font-thai);
+    letter-spacing: -0.01em;
+    line-height: 1.35;
 }
 
 * {
@@ -31,7 +48,7 @@
 body {
     background-color: var(--bg-main);
     color: var(--text-main);
-    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-main);
     line-height: 1.6;
     overflow-x: hidden;
     position: relative;
