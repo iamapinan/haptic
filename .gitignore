@@ -1,0 +1,6 @@
+/target
+/Haptic.app
+/*.dmg
+/*.zip
+/AppIcon.iconset
+.DS_Store
