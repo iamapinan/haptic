@@ -1,6 +1,6 @@
 # Haptic for macOS
 
-เพิ่มสัมผัส Haptic feedback (แรงสั่น/คลิกเบาๆ) ให้กับ Trackpad บน Mac เวลาเลื่อนเมาส์หรือ scroll หน้าจอ 
+เพิ่มสัมผัส Haptic feedback (แรงสั่น/คลิกเบาๆ) ให้กับ Trackpad และ **เสียงพิมพ์ Mechanical Keyboard** บน Mac เวลาเลื่อนเมาส์, scroll, ทำ multi-touch gesture หรือพิมพ์งาน
 
 เขียนด้วย **Rust** แบบ lightweight ทำงานเงียบๆ อยู่บน Menu Bar ไม่กินแรม ไม่หน่วงเครื่อง
 
@@ -8,12 +8,18 @@
 
 ## ทำไมถึงทำตัวนี้?
 
-เวลาใช้ Trackpad บน MacBook หรือ Magic Trackpad เรามักจะ scroll หน้ายาวๆ แบบลื่นไหล แต่บางทีก็คิดถึงความรู้สึกตอนหมุน scroll wheel กึกๆ บนเมาส์จริง หรืออยากได้สัมผัส tactile เวลาเคอร์เซอร์ขยับผ่านระยะต่างๆ แอปตัวนี้จะยิงสัญญาณตรงไปที่ Taptic Engine ของ Trackpad เพื่อจำลองจังหวะนั้นขึ้นมา
+เวลาใช้ MacBook หรือ Magic Trackpad เรามักจะ scroll หน้ายาวๆ แบบลื่นไหล แต่บางทีก็คิดถึงความรู้สึกตอนหมุน scroll wheel กึกๆ บนเมาส์จริง หรือคิดถึงเสียงพิมพ์คีย์บอร์ด mechanical แบบ thocky แน่นๆ แอปตัวนี้จะยิงสัญญาณตรงไปที่ Taptic Engine ของ Trackpad และจำลองเสียง mechanical switch ให้ทุกการขยับและพิมพ์สนุกขึ้น
 
 ## ความสามารถ
 
 - **Mouse Movement Haptic** — สั่นเบาๆ ตามระยะทางที่เมาส์เคลื่อนที่
 - **Scroll Wheel Haptic** — สั่นเป็นจังหวะตามความเร็วและระยะการ scroll
+- **Multi-Touch Gestures** — สั่นตอบสนองเวลา Pinch-to-zoom (ซูมภาพ), หมุน 2 นิ้ว (Rotate) หรือปัดหน้าจอ (Swipe)
+- **Mechanical Keyboard Sounds** — มีเสียงคลิกแป้นพิมพ์ mechanical ขณะพิมพ์แบบ low-latency (<2ms):
+  - **Cream / Holy Panda (Thocky)**: เสียงลึก ทุ้ม นุ่ม แน่น
+  - **Blue Switch (Crisp Click)**: เสียงกริ๊กใส คม ชัดเจน
+  - **Vintage Typewriter**: เสียงแป้นพิมพ์ดีดโบราณ
+  - ปรับระดับความดังได้ 5 ระดับ: 100%, 70%, 40%, 15%, Mute
 - **Menu Bar Controls** — เปิด/ปิด แยกแต่ละฟังก์ชันได้อิสระจากเมนูด้านบนขวา
 - **ปรับแรงสั่นได้ 3 ระดับ**: Light (สั่นเบา), Medium (ปานกลาง), Firm (หนักแน่น)
 - **ปรับความไว (Sensitivity)**: เลือกระยะ threshold ได้ว่าอยากให้สั่นถี่หรือห่างแค่ไหน
@@ -26,7 +32,7 @@
 3. เปิดแอป จะมีไอคอนสายฟ้า `⚡️` ขึ้นที่ Menu Bar ด้านบนขวา
 
 > **หมายเหตุสำหรับการเปิดครั้งแรก**:  
-> macOS จะขอสิทธิ์ **Accessibility (การช่วยการเข้าถึง)** เพื่อให้แอปดักจับตำแหน่งเมาส์และการ scroll ได้ ให้เข้าไปติ๊กเปิดอนุญาตที่:  
+> macOS จะขอสิทธิ์ **Accessibility (การช่วยการเข้าถึง)** เพื่อให้แอปดักจับตำแหน่งเมาส์, gesture และการพิมพ์ได้ ให้เข้าไปติ๊กเปิดอนุญาตที่:  
 > `System Settings` ➜ `Privacy & Security` ➜ `Accessibility` ➜ เปิดสวิตช์ให้ **Haptic**
 
 ---

@@ -1,6 +1,7 @@
 use crate::config::{AppConfig, Sensitivity};
 use crate::event_tap::is_accessibility_trusted;
 use crate::haptic::{perform_haptic, HapticPattern, Id, NIL};
+use crate::sound::{init_sound_engine, play_keyboard_sound, SoundProfile};
 use objc::declare::ClassDecl;
 use objc::runtime::{Class, Object, Sel};
 use objc::{class, msg_send, sel, sel_impl};
@@ -19,6 +20,8 @@ static MENU_REF: AtomicUsize = AtomicUsize::new(0);
 static PATTERN_MENU_REF: AtomicUsize = AtomicUsize::new(0);
 static MOUSE_MENU_REF: AtomicUsize = AtomicUsize::new(0);
 static SCROLL_MENU_REF: AtomicUsize = AtomicUsize::new(0);
+static SOUND_PROFILE_MENU_REF: AtomicUsize = AtomicUsize::new(0);
+static SOUND_VOL_MENU_REF: AtomicUsize = AtomicUsize::new(0);
 
 // Menu Item Tags
 const TAG_STATUS_HEADER: isize = 100;
@@ -26,6 +29,7 @@ const TAG_ENABLE_ALL: isize = 101;
 const TAG_ENABLE_MOUSE: isize = 102;
 const TAG_ENABLE_SCROLL: isize = 103;
 const TAG_ENABLE_GESTURES: isize = 104;
+const TAG_ENABLE_KEYBOARD: isize = 105;
 
 const TAG_PAT_GENERIC: isize = 201;
 const TAG_PAT_ALIGNMENT: isize = 202;
@@ -38,6 +42,16 @@ const TAG_MOUSE_LOW: isize = 303;
 const TAG_SCROLL_HIGH: isize = 401;
 const TAG_SCROLL_MED: isize = 402;
 const TAG_SCROLL_LOW: isize = 403;
+
+const TAG_SND_THOCK: isize = 501;
+const TAG_SND_BLUE: isize = 502;
+const TAG_SND_TYPEWRITER: isize = 503;
+
+const TAG_VOL_100: isize = 601;
+const TAG_VOL_70: isize = 602;
+const TAG_VOL_40: isize = 603;
+const TAG_VOL_15: isize = 604;
+const TAG_VOL_0: isize = 605;
 
 pub fn create_ns_string(s: &str) -> Id {
     unsafe {
@@ -59,6 +73,8 @@ pub fn update_menu_state() {
         let pattern_menu: Id = PATTERN_MENU_REF.load(Ordering::Relaxed) as Id;
         let mouse_menu: Id = MOUSE_MENU_REF.load(Ordering::Relaxed) as Id;
         let scroll_menu: Id = SCROLL_MENU_REF.load(Ordering::Relaxed) as Id;
+        let sound_profile_menu: Id = SOUND_PROFILE_MENU_REF.load(Ordering::Relaxed) as Id;
+        let sound_vol_menu: Id = SOUND_VOL_MENU_REF.load(Ordering::Relaxed) as Id;
         let status_item: Id = STATUS_ITEM_REF.load(Ordering::Relaxed) as Id;
 
         if menu == NIL {
@@ -70,9 +86,12 @@ pub fn update_menu_state() {
         let mouse_enabled = config.is_mouse_move_enabled();
         let scroll_enabled = config.is_scroll_enabled();
         let gestures_enabled = config.is_gestures_enabled();
+        let keyboard_sound_enabled = config.is_keyboard_sound_enabled();
         let pattern = config.get_pattern();
         let mouse_sens = config.get_mouse_sensitivity();
         let scroll_sens = config.get_scroll_sensitivity();
+        let sound_profile = config.get_sound_profile();
+        let sound_vol = config.get_sound_volume();
 
         // Update Status bar title
         if status_item != NIL {
@@ -107,9 +126,9 @@ pub fn update_menu_state() {
         };
 
         let status_text = if enabled {
-            "Status: Active (Haptics On)"
+            "Status: Active (Running)"
         } else {
-            "Status: Paused (Haptics Off)"
+            "Status: Paused (Off)"
         };
         set_item_title(menu, TAG_STATUS_HEADER, status_text);
 
@@ -117,6 +136,7 @@ pub fn update_menu_state() {
         set_item_state(menu, TAG_ENABLE_MOUSE, mouse_enabled);
         set_item_state(menu, TAG_ENABLE_SCROLL, scroll_enabled);
         set_item_state(menu, TAG_ENABLE_GESTURES, gestures_enabled);
+        set_item_state(menu, TAG_ENABLE_KEYBOARD, keyboard_sound_enabled);
 
         // Update Pattern submenu
         set_item_state(pattern_menu, TAG_PAT_GENERIC, pattern == HapticPattern::Generic);
@@ -132,15 +152,26 @@ pub fn update_menu_state() {
         set_item_state(scroll_menu, TAG_SCROLL_HIGH, scroll_sens == Sensitivity::High);
         set_item_state(scroll_menu, TAG_SCROLL_MED, scroll_sens == Sensitivity::Medium);
         set_item_state(scroll_menu, TAG_SCROLL_LOW, scroll_sens == Sensitivity::Low);
+
+        // Update Sound Profile submenu
+        set_item_state(sound_profile_menu, TAG_SND_THOCK, sound_profile == SoundProfile::DeepThock);
+        set_item_state(sound_profile_menu, TAG_SND_BLUE, sound_profile == SoundProfile::ClickyBlue);
+        set_item_state(sound_profile_menu, TAG_SND_TYPEWRITER, sound_profile == SoundProfile::Typewriter);
+
+        // Update Sound Volume submenu
+        set_item_state(sound_vol_menu, TAG_VOL_100, sound_vol >= 90);
+        set_item_state(sound_vol_menu, TAG_VOL_70, sound_vol >= 60 && sound_vol < 90);
+        set_item_state(sound_vol_menu, TAG_VOL_40, sound_vol >= 30 && sound_vol < 60);
+        set_item_state(sound_vol_menu, TAG_VOL_15, sound_vol > 0 && sound_vol < 30);
+        set_item_state(sound_vol_menu, TAG_VOL_0, sound_vol == 0);
     }
 }
 
-// Objective-C Action Handlers (wrapped with catch_unwind to prevent crashes)
+// Action Handlers
 extern "C" fn on_toggle_enabled(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         let new_val = config.toggle_enabled();
-        println!("[Haptic] Enabled toggled: {}", new_val);
         if new_val {
             perform_haptic(config.get_pattern());
         }
@@ -152,7 +183,6 @@ extern "C" fn on_toggle_mouse(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         let new_val = config.toggle_mouse_move();
-        println!("[Haptic] Mouse move feedback toggled: {}", new_val);
         if new_val {
             perform_haptic(config.get_pattern());
         }
@@ -164,7 +194,6 @@ extern "C" fn on_toggle_scroll(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         let new_val = config.toggle_scroll();
-        println!("[Haptic] Scroll feedback toggled: {}", new_val);
         if new_val {
             perform_haptic(config.get_pattern());
         }
@@ -176,9 +205,19 @@ extern "C" fn on_toggle_gestures(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         let new_val = config.toggle_gestures();
-        println!("[Haptic] Multi-Touch Gestures feedback toggled: {}", new_val);
         if new_val {
             perform_haptic(config.get_pattern());
+        }
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_toggle_keyboard(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        let new_val = config.toggle_keyboard_sound();
+        if new_val {
+            play_keyboard_sound(49, config.get_sound_profile(), config.get_sound_volume());
         }
         update_menu_state();
     });
@@ -188,7 +227,6 @@ extern "C" fn on_set_pattern_generic(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_pattern(HapticPattern::Generic);
-        println!("[Haptic] Pattern set to: Generic");
         perform_haptic(HapticPattern::Generic);
         update_menu_state();
     });
@@ -198,7 +236,6 @@ extern "C" fn on_set_pattern_alignment(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_pattern(HapticPattern::Alignment);
-        println!("[Haptic] Pattern set to: Alignment");
         perform_haptic(HapticPattern::Alignment);
         update_menu_state();
     });
@@ -208,7 +245,6 @@ extern "C" fn on_set_pattern_level(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_pattern(HapticPattern::LevelChange);
-        println!("[Haptic] Pattern set to: LevelChange");
         perform_haptic(HapticPattern::LevelChange);
         update_menu_state();
     });
@@ -218,7 +254,6 @@ extern "C" fn on_set_mouse_sens_high(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_mouse_sensitivity(Sensitivity::High);
-        println!("[Haptic] Mouse sensitivity set to: High");
         perform_haptic(config.get_pattern());
         update_menu_state();
     });
@@ -228,7 +263,6 @@ extern "C" fn on_set_mouse_sens_med(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_mouse_sensitivity(Sensitivity::Medium);
-        println!("[Haptic] Mouse sensitivity set to: Medium");
         perform_haptic(config.get_pattern());
         update_menu_state();
     });
@@ -238,7 +272,6 @@ extern "C" fn on_set_mouse_sens_low(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_mouse_sensitivity(Sensitivity::Low);
-        println!("[Haptic] Mouse sensitivity set to: Low");
         perform_haptic(config.get_pattern());
         update_menu_state();
     });
@@ -248,7 +281,6 @@ extern "C" fn on_set_scroll_sens_high(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_scroll_sensitivity(Sensitivity::High);
-        println!("[Haptic] Scroll sensitivity set to: High");
         perform_haptic(config.get_pattern());
         update_menu_state();
     });
@@ -258,7 +290,6 @@ extern "C" fn on_set_scroll_sens_med(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_scroll_sensitivity(Sensitivity::Medium);
-        println!("[Haptic] Scroll sensitivity set to: Medium");
         perform_haptic(config.get_pattern());
         update_menu_state();
     });
@@ -268,8 +299,79 @@ extern "C" fn on_set_scroll_sens_low(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_scroll_sensitivity(Sensitivity::Low);
-        println!("[Haptic] Scroll sensitivity set to: Low");
         perform_haptic(config.get_pattern());
+        update_menu_state();
+    });
+}
+
+// Sound handlers
+extern "C" fn on_set_sound_thock(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_sound_profile(SoundProfile::DeepThock);
+        play_keyboard_sound(49, SoundProfile::DeepThock, config.get_sound_volume());
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_set_sound_blue(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_sound_profile(SoundProfile::ClickyBlue);
+        play_keyboard_sound(49, SoundProfile::ClickyBlue, config.get_sound_volume());
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_set_sound_typewriter(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_sound_profile(SoundProfile::Typewriter);
+        play_keyboard_sound(49, SoundProfile::Typewriter, config.get_sound_volume());
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_set_vol_100(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_sound_volume(100);
+        play_keyboard_sound(49, config.get_sound_profile(), 100);
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_set_vol_70(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_sound_volume(70);
+        play_keyboard_sound(49, config.get_sound_profile(), 70);
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_set_vol_40(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_sound_volume(40);
+        play_keyboard_sound(49, config.get_sound_profile(), 40);
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_set_vol_15(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_sound_volume(15);
+        play_keyboard_sound(49, config.get_sound_profile(), 15);
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_set_vol_0(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_sound_volume(0);
         update_menu_state();
     });
 }
@@ -277,20 +379,14 @@ extern "C" fn on_set_scroll_sens_low(_this: &Object, _cmd: Sel, _sender: Id) {
 extern "C" fn on_test_haptic(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
-        println!("[Haptic] Testing haptic click...");
         perform_haptic(config.get_pattern());
+        play_keyboard_sound(49, config.get_sound_profile(), config.get_sound_volume());
     });
 }
 
 extern "C" fn on_check_accessibility(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
-        println!("[Haptic] Checking accessibility permissions...");
-        let trusted = is_accessibility_trusted(true);
-        if trusted {
-            println!("[Haptic] Accessibility is granted.");
-        } else {
-            println!("[Haptic] Prompted user to enable Accessibility in System Settings.");
-        }
+        let _ = is_accessibility_trusted(true);
     });
 }
 
@@ -301,7 +397,6 @@ extern "C" fn on_menu_will_open(_this: &Object, _cmd: Sel, _menu: Id) {
 }
 
 extern "C" fn on_quit(_this: &Object, _cmd: Sel, _sender: Id) {
-    println!("[Haptic] Exiting app on user request...");
     unsafe {
         let app: Id = msg_send![class!(NSApplication), sharedApplication];
         let () = msg_send![app, terminate: NIL];
@@ -315,74 +410,37 @@ fn register_action_handler_class() -> &'static Class {
             .expect("Failed to declare HapticMenuDelegate class");
 
         unsafe {
-            decl.add_method(
-                sel!(toggleEnabled:),
-                on_toggle_enabled as extern "C" fn(&Object, Sel, Id),
-            );
-            decl.add_method(
-                sel!(toggleMouseMove:),
-                on_toggle_mouse as extern "C" fn(&Object, Sel, Id),
-            );
-            decl.add_method(
-                sel!(toggleScroll:),
-                on_toggle_scroll as extern "C" fn(&Object, Sel, Id),
-            );
-            decl.add_method(
-                sel!(toggleGestures:),
-                on_toggle_gestures as extern "C" fn(&Object, Sel, Id),
-            );
+            decl.add_method(sel!(toggleEnabled:), on_toggle_enabled as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(toggleMouseMove:), on_toggle_mouse as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(toggleScroll:), on_toggle_scroll as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(toggleGestures:), on_toggle_gestures as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(toggleKeyboard:), on_toggle_keyboard as extern "C" fn(&Object, Sel, Id));
 
-            decl.add_method(
-                sel!(setPatternGeneric:),
-                on_set_pattern_generic as extern "C" fn(&Object, Sel, Id),
-            );
-            decl.add_method(
-                sel!(setPatternAlignment:),
-                on_set_pattern_alignment as extern "C" fn(&Object, Sel, Id),
-            );
-            decl.add_method(
-                sel!(setPatternLevel:),
-                on_set_pattern_level as extern "C" fn(&Object, Sel, Id),
-            );
+            decl.add_method(sel!(setPatternGeneric:), on_set_pattern_generic as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setPatternAlignment:), on_set_pattern_alignment as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setPatternLevel:), on_set_pattern_level as extern "C" fn(&Object, Sel, Id));
 
-            decl.add_method(
-                sel!(setMouseSensHigh:),
-                on_set_mouse_sens_high as extern "C" fn(&Object, Sel, Id),
-            );
-            decl.add_method(
-                sel!(setMouseSensMed:),
-                on_set_mouse_sens_med as extern "C" fn(&Object, Sel, Id),
-            );
-            decl.add_method(
-                sel!(setMouseSensLow:),
-                on_set_mouse_sens_low as extern "C" fn(&Object, Sel, Id),
-            );
+            decl.add_method(sel!(setMouseSensHigh:), on_set_mouse_sens_high as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setMouseSensMed:), on_set_mouse_sens_med as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setMouseSensLow:), on_set_mouse_sens_low as extern "C" fn(&Object, Sel, Id));
 
-            decl.add_method(
-                sel!(setScrollSensHigh:),
-                on_set_scroll_sens_high as extern "C" fn(&Object, Sel, Id),
-            );
-            decl.add_method(
-                sel!(setScrollSensMed:),
-                on_set_scroll_sens_med as extern "C" fn(&Object, Sel, Id),
-            );
-            decl.add_method(
-                sel!(setScrollSensLow:),
-                on_set_scroll_sens_low as extern "C" fn(&Object, Sel, Id),
-            );
+            decl.add_method(sel!(setScrollSensHigh:), on_set_scroll_sens_high as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setScrollSensMed:), on_set_scroll_sens_med as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setScrollSensLow:), on_set_scroll_sens_low as extern "C" fn(&Object, Sel, Id));
 
-            decl.add_method(
-                sel!(testHaptic:),
-                on_test_haptic as extern "C" fn(&Object, Sel, Id),
-            );
-            decl.add_method(
-                sel!(checkAccessibility:),
-                on_check_accessibility as extern "C" fn(&Object, Sel, Id),
-            );
-            decl.add_method(
-                sel!(menuWillOpen:),
-                on_menu_will_open as extern "C" fn(&Object, Sel, Id),
-            );
+            decl.add_method(sel!(setSoundThock:), on_set_sound_thock as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setSoundBlue:), on_set_sound_blue as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setSoundTypewriter:), on_set_sound_typewriter as extern "C" fn(&Object, Sel, Id));
+
+            decl.add_method(sel!(setVol100:), on_set_vol_100 as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setVol70:), on_set_vol_70 as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setVol40:), on_set_vol_40 as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setVol15:), on_set_vol_15 as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setVol0:), on_set_vol_0 as extern "C" fn(&Object, Sel, Id));
+
+            decl.add_method(sel!(testHaptic:), on_test_haptic as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(checkAccessibility:), on_check_accessibility as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(menuWillOpen:), on_menu_will_open as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(quit:), on_quit as extern "C" fn(&Object, Sel, Id));
         }
 
@@ -394,17 +452,18 @@ fn register_action_handler_class() -> &'static Class {
 
 pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str> {
     unsafe {
-        let _ = GLOBAL_CONFIG.set(config);
+        let _ = GLOBAL_CONFIG.set(config.clone());
+
+        // Pre-initialize sound engine
+        init_sound_engine(config.get_sound_volume());
 
         let delegate_cls = register_action_handler_class();
         let delegate: Id = msg_send![delegate_cls, alloc];
         let delegate: Id = msg_send![delegate, init];
-        // Retain delegate permanently so AppKit weak targets never dangle
         let () = msg_send![delegate, retain];
         DELEGATE_REF.store(delegate as usize, Ordering::Relaxed);
 
         let status_bar: Id = msg_send![class!(NSStatusBar), systemStatusBar];
-        // -1.0 is NSVariableStatusItemLength
         let status_item: Id = msg_send![status_bar, statusItemWithLength: -1.0f64];
         let () = msg_send![status_item, retain];
         STATUS_ITEM_REF.store(status_item as usize, Ordering::Relaxed);
@@ -420,7 +479,6 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
         let () = msg_send![menu, setDelegate: delegate];
         MENU_REF.store(menu as usize, Ordering::Relaxed);
 
-        // Helper to add item
         let add_item = |target_menu: Id, title: &str, action: Option<Sel>, tag: isize, key: &str| -> Id {
             let ns_title = create_ns_string(title);
             let ns_key = create_ns_string(key);
@@ -452,34 +510,11 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
         add_separator(menu);
 
         // 2. Enable Toggles
-        add_item(
-            menu,
-            "Enable Haptics",
-            Some(sel!(toggleEnabled:)),
-            TAG_ENABLE_ALL,
-            "e",
-        );
-        add_item(
-            menu,
-            "Mouse Movement Haptic",
-            Some(sel!(toggleMouseMove:)),
-            TAG_ENABLE_MOUSE,
-            "m",
-        );
-        add_item(
-            menu,
-            "Scroll Wheel Haptic",
-            Some(sel!(toggleScroll:)),
-            TAG_ENABLE_SCROLL,
-            "s",
-        );
-        add_item(
-            menu,
-            "Multi-Touch Gestures (Pinch / Rotate)",
-            Some(sel!(toggleGestures:)),
-            TAG_ENABLE_GESTURES,
-            "g",
-        );
+        add_item(menu, "Enable All Effects", Some(sel!(toggleEnabled:)), TAG_ENABLE_ALL, "e");
+        add_item(menu, "Mouse Movement Haptic", Some(sel!(toggleMouseMove:)), TAG_ENABLE_MOUSE, "m");
+        add_item(menu, "Scroll Wheel Haptic", Some(sel!(toggleScroll:)), TAG_ENABLE_SCROLL, "s");
+        add_item(menu, "Multi-Touch Gestures (Pinch/Rotate)", Some(sel!(toggleGestures:)), TAG_ENABLE_GESTURES, "g");
+        add_item(menu, "Mechanical Keyboard Sounds", Some(sel!(toggleKeyboard:)), TAG_ENABLE_KEYBOARD, "k");
 
         add_separator(menu);
 
@@ -488,27 +523,9 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
         let () = msg_send![pattern_menu, retain];
         PATTERN_MENU_REF.store(pattern_menu as usize, Ordering::Relaxed);
 
-        add_item(
-            pattern_menu,
-            "Generic (Light)",
-            Some(sel!(setPatternGeneric:)),
-            TAG_PAT_GENERIC,
-            "",
-        );
-        add_item(
-            pattern_menu,
-            "Alignment (Medium)",
-            Some(sel!(setPatternAlignment:)),
-            TAG_PAT_ALIGNMENT,
-            "",
-        );
-        add_item(
-            pattern_menu,
-            "Level Change (Firm)",
-            Some(sel!(setPatternLevel:)),
-            TAG_PAT_LEVEL,
-            "",
-        );
+        add_item(pattern_menu, "Generic (Light)", Some(sel!(setPatternGeneric:)), TAG_PAT_GENERIC, "");
+        add_item(pattern_menu, "Alignment (Medium)", Some(sel!(setPatternAlignment:)), TAG_PAT_ALIGNMENT, "");
+        add_item(pattern_menu, "Level Change (Firm)", Some(sel!(setPatternLevel:)), TAG_PAT_LEVEL, "");
 
         let pattern_item = add_item(menu, "Haptic Pattern / Intensity", None, 0, "");
         let () = msg_send![pattern_item, setSubmenu: pattern_menu];
@@ -518,27 +535,9 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
         let () = msg_send![mouse_sens_menu, retain];
         MOUSE_MENU_REF.store(mouse_sens_menu as usize, Ordering::Relaxed);
 
-        add_item(
-            mouse_sens_menu,
-            "High (Sensitive)",
-            Some(sel!(setMouseSensHigh:)),
-            TAG_MOUSE_HIGH,
-            "",
-        );
-        add_item(
-            mouse_sens_menu,
-            "Medium (Normal)",
-            Some(sel!(setMouseSensMed:)),
-            TAG_MOUSE_MED,
-            "",
-        );
-        add_item(
-            mouse_sens_menu,
-            "Low (Coarse)",
-            Some(sel!(setMouseSensLow:)),
-            TAG_MOUSE_LOW,
-            "",
-        );
+        add_item(mouse_sens_menu, "High (Sensitive)", Some(sel!(setMouseSensHigh:)), TAG_MOUSE_HIGH, "");
+        add_item(mouse_sens_menu, "Medium (Normal)", Some(sel!(setMouseSensMed:)), TAG_MOUSE_MED, "");
+        add_item(mouse_sens_menu, "Low (Coarse)", Some(sel!(setMouseSensLow:)), TAG_MOUSE_LOW, "");
 
         let mouse_sens_item = add_item(menu, "Mouse Sensitivity", None, 0, "");
         let () = msg_send![mouse_sens_item, setSubmenu: mouse_sens_menu];
@@ -548,46 +547,50 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
         let () = msg_send![scroll_sens_menu, retain];
         SCROLL_MENU_REF.store(scroll_sens_menu as usize, Ordering::Relaxed);
 
-        add_item(
-            scroll_sens_menu,
-            "High (Sensitive)",
-            Some(sel!(setScrollSensHigh:)),
-            TAG_SCROLL_HIGH,
-            "",
-        );
-        add_item(
-            scroll_sens_menu,
-            "Medium (Normal)",
-            Some(sel!(setScrollSensMed:)),
-            TAG_SCROLL_MED,
-            "",
-        );
-        add_item(
-            scroll_sens_menu,
-            "Low (Coarse)",
-            Some(sel!(setScrollSensLow:)),
-            TAG_SCROLL_LOW,
-            "",
-        );
+        add_item(scroll_sens_menu, "High (Sensitive)", Some(sel!(setScrollSensHigh:)), TAG_SCROLL_HIGH, "");
+        add_item(scroll_sens_menu, "Medium (Normal)", Some(sel!(setScrollSensMed:)), TAG_SCROLL_MED, "");
+        add_item(scroll_sens_menu, "Low (Coarse)", Some(sel!(setScrollSensLow:)), TAG_SCROLL_LOW, "");
 
         let scroll_sens_item = add_item(menu, "Scroll Sensitivity", None, 0, "");
         let () = msg_send![scroll_sens_item, setSubmenu: scroll_sens_menu];
 
         add_separator(menu);
 
-        // 6. Test Haptic & Permissions
-        add_item(menu, "Test Haptic Click", Some(sel!(testHaptic:)), 0, "t");
-        add_item(
-            menu,
-            "Check Accessibility Permissions...",
-            Some(sel!(checkAccessibility:)),
-            0,
-            "",
-        );
+        // 6. Keyboard Sound Switch Profile Submenu
+        let sound_profile_menu: Id = msg_send![class!(NSMenu), new];
+        let () = msg_send![sound_profile_menu, retain];
+        SOUND_PROFILE_MENU_REF.store(sound_profile_menu as usize, Ordering::Relaxed);
+
+        add_item(sound_profile_menu, "Cream / Holy Panda (Thocky)", Some(sel!(setSoundThock:)), TAG_SND_THOCK, "");
+        add_item(sound_profile_menu, "Blue Switch (Crisp Click)", Some(sel!(setSoundBlue:)), TAG_SND_BLUE, "");
+        add_item(sound_profile_menu, "Vintage Typewriter", Some(sel!(setSoundTypewriter:)), TAG_SND_TYPEWRITER, "");
+
+        let sound_profile_item = add_item(menu, "Keyboard Switch Sound", None, 0, "");
+        let () = msg_send![sound_profile_item, setSubmenu: sound_profile_menu];
+
+        // 7. Keyboard Sound Volume Submenu
+        let sound_vol_menu: Id = msg_send![class!(NSMenu), new];
+        let () = msg_send![sound_vol_menu, retain];
+        SOUND_VOL_MENU_REF.store(sound_vol_menu as usize, Ordering::Relaxed);
+
+        add_item(sound_vol_menu, "100% (High)", Some(sel!(setVol100:)), TAG_VOL_100, "");
+        add_item(sound_vol_menu, "70% (Medium)", Some(sel!(setVol70:)), TAG_VOL_70, "");
+        add_item(sound_vol_menu, "40% (Quiet)", Some(sel!(setVol40:)), TAG_VOL_40, "");
+        add_item(sound_vol_menu, "15% (Subtle)", Some(sel!(setVol15:)), TAG_VOL_15, "");
+        add_item(sound_vol_menu, "Mute (Off)", Some(sel!(setVol0:)), TAG_VOL_0, "");
+
+        let sound_vol_item = add_item(menu, "Keyboard Sound Volume", None, 0, "");
+        let () = msg_send![sound_vol_item, setSubmenu: sound_vol_menu];
 
         add_separator(menu);
 
-        // 7. Quit
+        // 8. Test & Permissions
+        add_item(menu, "Test Haptic & Sound", Some(sel!(testHaptic:)), 0, "t");
+        add_item(menu, "Check Accessibility Permissions...", Some(sel!(checkAccessibility:)), 0, "");
+
+        add_separator(menu);
+
+        // 9. Quit
         add_item(menu, "Quit Haptic", Some(sel!(quit:)), 0, "q");
 
         // Attach menu to status item

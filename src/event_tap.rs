@@ -1,5 +1,6 @@
 use crate::config::AppConfig;
 use crate::haptic::{perform_haptic, Id, NIL};
+use crate::sound::play_keyboard_sound;
 use block::ConcreteBlock;
 use core_foundation::base::TCFType;
 use core_foundation::boolean::CFBoolean;
@@ -57,7 +58,21 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
         let min_interval = std::time::Duration::from_millis(state.config.get_min_interval_ms());
         let pattern = state.config.get_pattern();
 
-        // 1. Mouse Moved (5), LeftMouseDragged (6), RightMouseDragged (7), OtherMouseDragged (27)
+        // 1. Keyboard KeyDown (10) -> Mechanical Keyboard Sound
+        if event_type == 10 {
+            if state.config.is_keyboard_sound_enabled() {
+                let key_code: u16 = msg_send![event, keyCode];
+                let is_repeat: bool = msg_send![event, isARepeat];
+                let profile = state.config.get_sound_profile();
+                let vol = state.config.get_sound_volume();
+
+                // If key is repeating (held down), play slightly softer or at normal volume
+                let effective_vol = if is_repeat { (vol as f32 * 0.8) as u8 } else { vol };
+                play_keyboard_sound(key_code, profile, effective_vol);
+            }
+        }
+
+        // 2. Mouse Moved (5), LeftMouseDragged (6), RightMouseDragged (7), OtherMouseDragged (27)
         if event_type == 5 || event_type == 6 || event_type == 7 || event_type == 27 {
             if state.config.is_mouse_move_enabled() {
                 let dx: f64 = msg_send![event, deltaX];
@@ -79,7 +94,7 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
             }
         }
 
-        // 2. Scroll Wheel (22)
+        // 3. Scroll Wheel (22)
         if event_type == 22 {
             if state.config.is_scroll_enabled() {
                 let delta_y: f64 = msg_send![event, scrollingDeltaY];
@@ -109,7 +124,7 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
             }
         }
 
-        // 3. Multi-Touch Pinch to Zoom (Magnify = 30)
+        // 4. Multi-Touch Pinch to Zoom (Magnify = 30)
         if event_type == 30 {
             if state.config.is_gestures_enabled() {
                 let mag: f64 = msg_send![event, magnification];
@@ -126,7 +141,7 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
             }
         }
 
-        // 4. Multi-Touch Rotate (18)
+        // 5. Multi-Touch Rotate (18)
         if event_type == 18 {
             if state.config.is_gestures_enabled() {
                 let rot: f32 = msg_send![event, rotation];
@@ -143,7 +158,7 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
             }
         }
 
-        // 5. Multi-Touch Swipe (31)
+        // 6. Multi-Touch Swipe (31)
         if event_type == 31 {
             if state.config.is_gestures_enabled() {
                 if now.duration_since(state.last_haptic_time) >= min_interval {
@@ -172,9 +187,10 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
 
     unsafe {
         // Mask:
-        // MouseMoved (1 << 5), LeftMouseDragged (1 << 6), RightMouseDragged (1 << 7), OtherMouseDragged (1 << 27),
+        // KeyDown (1 << 10), MouseMoved (1 << 5), LeftMouseDragged (1 << 6), RightMouseDragged (1 << 7), OtherMouseDragged (1 << 27),
         // ScrollWheel (1 << 22), Rotate (1 << 18), Magnify/Pinch (1 << 30), Swipe (1 << 31)
-        let mask: u64 = (1 << 5)
+        let mask: u64 = (1 << 10)
+            | (1 << 5)
             | (1 << 6)
             | (1 << 7)
             | (1 << 27)
@@ -199,7 +215,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
         if global_monitor != NIL {
             let () = msg_send![global_monitor, retain];
             MONITOR_REF.store(global_monitor as usize, Ordering::Relaxed);
-            println!("[Haptic] Global Multi-Touch & Mouse monitor active.");
+            println!("[Haptic] Global Multi-Touch, Mouse & Keyboard sound monitor active.");
         } else {
             eprintln!("[Haptic] Warning: Failed to add global NSEvent monitor.");
         }
@@ -221,7 +237,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
         if local_monitor != NIL {
             let () = msg_send![local_monitor, retain];
             LOCAL_MONITOR_REF.store(local_monitor as usize, Ordering::Relaxed);
-            println!("[Haptic] Local Multi-Touch monitor active.");
+            println!("[Haptic] Local monitor active.");
         }
     }
 

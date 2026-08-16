@@ -1,4 +1,5 @@
 use crate::haptic::HapticPattern;
+use crate::sound::SoundProfile;
 use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 use std::sync::Arc;
 
@@ -65,9 +66,12 @@ pub struct AppConfig {
     pub mouse_move_enabled: AtomicBool,
     pub scroll_enabled: AtomicBool,
     pub gestures_enabled: AtomicBool,
+    pub keyboard_sound_enabled: AtomicBool,
     pub pattern: AtomicU8,             // 0 = Generic, 1 = Alignment, 2 = LevelChange
     pub mouse_sensitivity: AtomicU8,   // 0 = High, 1 = Medium, 2 = Low
     pub scroll_sensitivity: AtomicU8,  // 0 = High, 1 = Medium, 2 = Low
+    pub sound_profile: AtomicU8,       // 0 = Blue, 1 = Thock, 2 = Typewriter
+    pub sound_volume: AtomicU8,        // 0 - 100 (Default: 70)
     pub min_interval_ms: AtomicU64,    // minimum ms between consecutive haptic pulses
 }
 
@@ -78,9 +82,12 @@ impl AppConfig {
             mouse_move_enabled: AtomicBool::new(true),
             scroll_enabled: AtomicBool::new(true),
             gestures_enabled: AtomicBool::new(true),
+            keyboard_sound_enabled: AtomicBool::new(true),
             pattern: AtomicU8::new(0), // Generic
             mouse_sensitivity: AtomicU8::new(1), // Medium
             scroll_sensitivity: AtomicU8::new(1), // Medium
+            sound_profile: AtomicU8::new(1), // Deep Thock (Creamy)
+            sound_volume: AtomicU8::new(70), // 70% volume
             min_interval_ms: AtomicU64::new(25), // 25ms limit
         })
     }
@@ -119,6 +126,31 @@ impl AppConfig {
     pub fn toggle_gestures(&self) -> bool {
         let prev = self.gestures_enabled.fetch_xor(true, Ordering::SeqCst);
         !prev
+    }
+
+    pub fn is_keyboard_sound_enabled(&self) -> bool {
+        self.keyboard_sound_enabled.load(Ordering::Relaxed)
+    }
+
+    pub fn toggle_keyboard_sound(&self) -> bool {
+        let prev = self.keyboard_sound_enabled.fetch_xor(true, Ordering::SeqCst);
+        !prev
+    }
+
+    pub fn get_sound_profile(&self) -> SoundProfile {
+        SoundProfile::from_u8(self.sound_profile.load(Ordering::Relaxed))
+    }
+
+    pub fn set_sound_profile(&self, profile: SoundProfile) {
+        self.sound_profile.store(profile as u8, Ordering::SeqCst);
+    }
+
+    pub fn get_sound_volume(&self) -> u8 {
+        self.sound_volume.load(Ordering::Relaxed)
+    }
+
+    pub fn set_sound_volume(&self, vol: u8) {
+        self.sound_volume.store(vol, Ordering::SeqCst);
     }
 
     pub fn get_pattern(&self) -> HapticPattern {

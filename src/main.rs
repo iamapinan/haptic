@@ -2,6 +2,7 @@ mod config;
 mod event_tap;
 mod haptic;
 mod menu;
+mod sound;
 
 use config::AppConfig;
 use event_tap::start_event_tap;
