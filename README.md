@@ -1,8 +1,13 @@
-# Haptic for macOS
+# ⚡️ Haptic for macOS
 
-เพิ่มสัมผัส Haptic feedback (แรงสั่น/คลิกเบาๆ) ให้กับ Trackpad และ **เสียงพิมพ์ Mechanical Keyboard** บน Mac เวลาเลื่อนเมาส์, scroll, ทำ multi-touch gesture หรือพิมพ์งาน
+<p align="center">
+  <img src="preview.png" alt="Haptic for macOS Preview" width="800" />
+</p>
 
-เขียนด้วย **Rust** แบบ lightweight ทำงานเงียบๆ อยู่บน Menu Bar ไม่กินแรม ไม่หน่วงเครื่อง
+<p align="center">
+  <b>เพิ่มสัมผัส Haptic feedback (แรงสั่น/คลิกเบาๆ) ให้กับ Trackpad และเสียงพิมพ์ Mechanical Keyboard บน macOS</b><br />
+  <sub>เขียนด้วย Pure Rust & Native Cocoa • เบา ประหยัดแรม &lt;10MB • รันบน Menu Bar เงียบๆ</sub>
+</p>
 
 ---
 
