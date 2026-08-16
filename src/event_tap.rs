@@ -22,6 +22,7 @@ type CGEventTapProxy = *mut c_void;
 
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
+    fn AXIsProcessTrusted() -> bool;
     fn AXIsProcessTrustedWithOptions(options: core_foundation::dictionary::CFDictionaryRef) -> bool;
 }
 
@@ -63,12 +64,11 @@ extern "C" {
 
 pub fn is_accessibility_trusted(prompt: bool) -> bool {
     unsafe {
+        if !prompt {
+            return AXIsProcessTrusted();
+        }
         let key = CFString::new("AXTrustedCheckOptionPrompt");
-        let value = if prompt {
-            CFBoolean::true_value()
-        } else {
-            CFBoolean::false_value()
-        };
+        let value = CFBoolean::true_value();
         let dict = CFDictionary::from_CFType_pairs(&[(key.as_CFType(), value.as_CFType())]);
         AXIsProcessTrustedWithOptions(dict.as_concrete_TypeRef())
     }
@@ -279,19 +279,11 @@ unsafe extern "C" fn cg_keyboard_callback(
     event
 }
 
-pub fn check_and_request_accessibility() -> bool {
-    // Check silently first without showing dialog
-    if is_accessibility_trusted(false) {
-        return true;
-    }
-    // Only prompt user if not already granted
-    is_accessibility_trusted(true)
-}
-
 /// Sets up system-wide NSEvent monitors for gestures/mouse + IOHIDManager & CGEventTap for keyboard
 pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
-    if !check_and_request_accessibility() {
-        eprintln!("[Haptic] Accessibility permission requested. Please enable in System Settings.");
+    // 100% silent check on startup - never pop up dialog automatically
+    if !is_accessibility_trusted(false) {
+        println!("[Haptic] Note: Accessibility permission not yet active. (Can be checked via menu)");
     }
 
     let raw_config = Arc::into_raw(Arc::clone(&config)) as *mut c_void;
