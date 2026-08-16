@@ -34,6 +34,19 @@ pub enum HapticPattern {
 }
 
 impl HapticPattern {
+    pub fn from_u8(val: u8) -> Self {
+        match val {
+            0 => HapticPattern::Generic,
+            1 => HapticPattern::Alignment,
+            2 => HapticPattern::LevelChange,
+            _ => HapticPattern::Generic,
+        }
+    }
+
+    pub fn to_u8(&self) -> u8 {
+        *self as u8
+    }
+
     pub fn actuator_id(&self) -> i32 {
         match self {
             HapticPattern::Generic => 1,     // Light / subtle tick

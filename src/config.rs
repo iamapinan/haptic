@@ -79,12 +79,70 @@ impl Sensitivity {
     }
 }
 
+fn get_launch_agent_path() -> Option<std::path::PathBuf> {
+    let home = std::env::var("HOME").ok()?;
+    Some(std::path::PathBuf::from(home).join("Library/LaunchAgents/com.apinan.haptic.plist"))
+}
+
+pub fn is_launch_at_login_installed() -> bool {
+    if let Some(path) = get_launch_agent_path() {
+        path.exists()
+    } else {
+        false
+    }
+}
+
+pub fn set_launch_at_login_system(enabled: bool) {
+    if let Some(path) = get_launch_agent_path() {
+        if enabled {
+            let exe_path = if std::path::Path::new("/Applications/Haptic.app/Contents/MacOS/haptic-mac").exists() {
+                "/Applications/Haptic.app/Contents/MacOS/haptic-mac".to_string()
+            } else if let Ok(current_exe) = std::env::current_exe() {
+                current_exe.to_string_lossy().to_string()
+            } else {
+                "/Applications/Haptic.app/Contents/MacOS/haptic-mac".to_string()
+            };
+
+            let plist_content = format!(
+                r#"<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.apinan.haptic</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>ProcessType</key>
+    <string>Interactive</string>
+</dict>
+</plist>
+"#,
+                exe_path
+            );
+
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&path, plist_content);
+            println!("[Haptic] Launch at login enabled: {:?}", path);
+        } else {
+            let _ = std::fs::remove_file(&path);
+            println!("[Haptic] Launch at login disabled.");
+        }
+    }
+}
+
 pub struct AppConfig {
     pub enabled: AtomicBool,
     pub mouse_move_enabled: AtomicBool,
     pub scroll_enabled: AtomicBool,
     pub gestures_enabled: AtomicBool,
     pub keyboard_sound_enabled: AtomicBool,
+    pub launch_at_login: AtomicBool,
     pub output_mode: AtomicU8,          // 0 = Trackpad, 1 = Speaker Tick, 2 = Both
     pub pattern: AtomicU8,              // 0 = Generic, 1 = Alignment, 2 = LevelChange
     pub mouse_sensitivity: AtomicU8,    // 0 = High, 1 = Medium, 2 = Low
@@ -96,12 +154,14 @@ pub struct AppConfig {
 
 impl AppConfig {
     pub fn new() -> Arc<Self> {
+        let launch_login = is_launch_at_login_installed();
         Arc::new(Self {
             enabled: AtomicBool::new(true),
             mouse_move_enabled: AtomicBool::new(true),
             scroll_enabled: AtomicBool::new(true),
             gestures_enabled: AtomicBool::new(true),
             keyboard_sound_enabled: AtomicBool::new(true),
+            launch_at_login: AtomicBool::new(launch_login),
             output_mode: AtomicU8::new(0), // Trackpad Only
             pattern: AtomicU8::new(0), // Generic
             mouse_sensitivity: AtomicU8::new(1), // Medium
@@ -157,41 +217,31 @@ impl AppConfig {
         !prev
     }
 
+    pub fn is_launch_at_login(&self) -> bool {
+        self.launch_at_login.load(Ordering::Relaxed)
+    }
+
+    pub fn toggle_launch_at_login(&self) -> bool {
+        let next = !self.is_launch_at_login();
+        self.launch_at_login.store(next, Ordering::SeqCst);
+        set_launch_at_login_system(next);
+        next
+    }
+
     pub fn get_output_mode(&self) -> HapticOutputMode {
         HapticOutputMode::from_u8(self.output_mode.load(Ordering::Relaxed))
     }
 
     pub fn set_output_mode(&self, mode: HapticOutputMode) {
-        self.output_mode.store(mode as u8, Ordering::SeqCst);
-    }
-
-    pub fn get_sound_profile(&self) -> SoundProfile {
-        SoundProfile::from_u8(self.sound_profile.load(Ordering::Relaxed))
-    }
-
-    pub fn set_sound_profile(&self, profile: SoundProfile) {
-        self.sound_profile.store(profile as u8, Ordering::SeqCst);
-    }
-
-    pub fn get_sound_volume(&self) -> u8 {
-        self.sound_volume.load(Ordering::Relaxed)
-    }
-
-    pub fn set_sound_volume(&self, vol: u8) {
-        self.sound_volume.store(vol, Ordering::SeqCst);
+        self.output_mode.store(mode as u8, Ordering::Relaxed);
     }
 
     pub fn get_pattern(&self) -> HapticPattern {
-        match self.pattern.load(Ordering::Relaxed) {
-            0 => HapticPattern::Generic,
-            1 => HapticPattern::Alignment,
-            2 => HapticPattern::LevelChange,
-            _ => HapticPattern::Generic,
-        }
+        HapticPattern::from_u8(self.pattern.load(Ordering::Relaxed))
     }
 
     pub fn set_pattern(&self, pattern: HapticPattern) {
-        self.pattern.store(pattern as u8, Ordering::SeqCst);
+        self.pattern.store(pattern.to_u8(), Ordering::Relaxed);
     }
 
     pub fn get_mouse_sensitivity(&self) -> Sensitivity {
@@ -199,7 +249,7 @@ impl AppConfig {
     }
 
     pub fn set_mouse_sensitivity(&self, sens: Sensitivity) {
-        self.mouse_sensitivity.store(sens.to_u8(), Ordering::SeqCst);
+        self.mouse_sensitivity.store(sens.to_u8(), Ordering::Relaxed);
     }
 
     pub fn get_scroll_sensitivity(&self) -> Sensitivity {
@@ -207,7 +257,23 @@ impl AppConfig {
     }
 
     pub fn set_scroll_sensitivity(&self, sens: Sensitivity) {
-        self.scroll_sensitivity.store(sens.to_u8(), Ordering::SeqCst);
+        self.scroll_sensitivity.store(sens.to_u8(), Ordering::Relaxed);
+    }
+
+    pub fn get_sound_profile(&self) -> SoundProfile {
+        SoundProfile::from_u8(self.sound_profile.load(Ordering::Relaxed))
+    }
+
+    pub fn set_sound_profile(&self, profile: SoundProfile) {
+        self.sound_profile.store(profile as u8, Ordering::Relaxed);
+    }
+
+    pub fn get_sound_volume(&self) -> u8 {
+        self.sound_volume.load(Ordering::Relaxed)
+    }
+
+    pub fn set_sound_volume(&self, vol: u8) {
+        self.sound_volume.store(vol.min(100), Ordering::Relaxed);
     }
 
     pub fn get_min_interval_ms(&self) -> u64 {

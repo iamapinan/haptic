@@ -31,6 +31,7 @@ const TAG_ENABLE_MOUSE: isize = 102;
 const TAG_ENABLE_SCROLL: isize = 103;
 const TAG_ENABLE_GESTURES: isize = 104;
 const TAG_ENABLE_KEYBOARD: isize = 105;
+const TAG_LAUNCH_AT_LOGIN: isize = 106;
 
 const TAG_MODE_TRACKPAD: isize = 151;
 const TAG_MODE_SPEAKER: isize = 152;
@@ -144,6 +145,7 @@ pub fn update_menu_state() {
         set_item_state(menu, TAG_ENABLE_SCROLL, scroll_enabled);
         set_item_state(menu, TAG_ENABLE_GESTURES, gestures_enabled);
         set_item_state(menu, TAG_ENABLE_KEYBOARD, keyboard_sound_enabled);
+        set_item_state(menu, TAG_LAUNCH_AT_LOGIN, config.is_launch_at_login());
 
         // Update Output Mode submenu
         set_item_state(output_mode_menu, TAG_MODE_TRACKPAD, output_mode == HapticOutputMode::TrackpadOnly);
@@ -231,6 +233,14 @@ extern "C" fn on_toggle_keyboard(_this: &Object, _cmd: Sel, _sender: Id) {
         if new_val {
             play_keyboard_sound(49, config.get_sound_profile(), config.get_sound_volume());
         }
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_toggle_launch_at_login(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.toggle_launch_at_login();
         update_menu_state();
     });
 }
@@ -459,6 +469,7 @@ fn register_action_handler_class() -> &'static Class {
             decl.add_method(sel!(toggleScroll:), on_toggle_scroll as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(toggleGestures:), on_toggle_gestures as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(toggleKeyboard:), on_toggle_keyboard as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(toggleLaunchAtLogin:), on_toggle_launch_at_login as extern "C" fn(&Object, Sel, Id));
 
             decl.add_method(sel!(setModeTrackpad:), on_set_mode_trackpad as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(setModeSpeaker:), on_set_mode_speaker as extern "C" fn(&Object, Sel, Id));
@@ -650,7 +661,8 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
 
         add_separator(menu);
 
-        // 10. Quit
+        // 10. Launch at Login & Quit
+        add_item(menu, "Launch at Login", Some(sel!(toggleLaunchAtLogin:)), TAG_LAUNCH_AT_LOGIN, "");
         add_item(menu, "Quit Haptic", Some(sel!(quit:)), 0, "q");
 
         // Attach menu to status item
