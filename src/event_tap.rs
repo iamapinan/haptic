@@ -5,7 +5,7 @@ use block::ConcreteBlock;
 use core_foundation::base::TCFType;
 use core_foundation::boolean::CFBoolean;
 use core_foundation::dictionary::CFDictionary;
-use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoopGetCurrent, CFRunLoopRun};
+use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoopAddSource, CFRunLoopGetMain};
 use core_foundation::string::CFString;
 use objc::{class, msg_send, sel, sel_impl};
 use std::ffi::c_void;
@@ -16,6 +16,9 @@ use std::time::Instant;
 type IOHIDManagerRef = *mut c_void;
 type IOHIDValueRef = *mut c_void;
 type IOHIDElementRef = *mut c_void;
+type CFMachPortRef = *mut c_void;
+type CGEventRef = *mut c_void;
+type CGEventTapProxy = *mut c_void;
 
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
@@ -44,6 +47,20 @@ extern "C" {
     fn IOHIDElementGetUsage(element: IOHIDElementRef) -> u32;
 }
 
+#[link(name = "CoreGraphics", kind = "framework")]
+extern "C" {
+    fn CGEventTapCreate(
+        tap: u32,
+        place: u32,
+        options: u32,
+        eventsOfInterest: u64,
+        callback: unsafe extern "C" fn(CGEventTapProxy, u32, CGEventRef, *mut c_void) -> CGEventRef,
+        userInfo: *mut c_void,
+    ) -> CFMachPortRef;
+    fn CGEventTapEnable(tap: CFMachPortRef, enable: bool);
+    fn CGEventGetIntegerValueField(event: CGEventRef, field: u32) -> i64;
+}
+
 pub fn is_accessibility_trusted(prompt: bool) -> bool {
     unsafe {
         let key = CFString::new("AXTrustedCheckOptionPrompt");
@@ -68,6 +85,8 @@ struct MonitorState {
 
 static MONITOR_REF: AtomicUsize = AtomicUsize::new(0);
 static LOCAL_MONITOR_REF: AtomicUsize = AtomicUsize::new(0);
+static KEYBOARD_TAP_REF: AtomicUsize = AtomicUsize::new(0);
+static LAST_KEY_TIME: AtomicUsize = AtomicUsize::new(0);
 
 fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
     unsafe {
@@ -185,6 +204,28 @@ fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
     }
 }
 
+fn trigger_keyboard_sound(key_code: u16, config: &AppConfig) {
+    if !config.is_enabled() || !config.is_keyboard_sound_enabled() {
+        return;
+    }
+
+    // Debounce duplicate events within 5ms (e.g. if both IOHID and CGEventTap trigger)
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as usize;
+
+    let last = LAST_KEY_TIME.load(Ordering::Relaxed);
+    if now_ms.saturating_sub(last) < 5 {
+        return;
+    }
+    LAST_KEY_TIME.store(now_ms, Ordering::Relaxed);
+
+    let profile = config.get_sound_profile();
+    let vol = config.get_sound_volume();
+    play_keyboard_sound(key_code, profile, vol);
+}
+
 unsafe extern "C" fn hid_keyboard_callback(
     context: *mut c_void,
     _result: i32,
@@ -207,57 +248,94 @@ unsafe extern "C" fn hid_keyboard_callback(
     if page == 0x07 && int_val == 1 {
         let usage = IOHIDElementGetUsage(elem);
         let config = &*(context as *const AppConfig);
-
-        if config.is_enabled() && config.is_keyboard_sound_enabled() {
-            let profile = config.get_sound_profile();
-            let vol = config.get_sound_volume();
-            play_keyboard_sound(usage as u16, profile, vol);
-        }
+        trigger_keyboard_sound(usage as u16, config);
     }
 }
 
-/// Sets up system-wide NSEvent monitors for gestures/mouse + IOHIDManager for keyboard
+unsafe extern "C" fn cg_keyboard_callback(
+    _proxy: CGEventTapProxy,
+    event_type: u32,
+    event: CGEventRef,
+    user_data: *mut c_void,
+) -> CGEventRef {
+    if event.is_null() || user_data.is_null() {
+        return event;
+    }
+
+    if event_type == 0xFFFFFFFE || event_type == 0xFFFFFFFF {
+        let tap = KEYBOARD_TAP_REF.load(Ordering::Relaxed) as CFMachPortRef;
+        if !tap.is_null() {
+            CGEventTapEnable(tap, true);
+        }
+        return event;
+    }
+
+    if event_type == 10 { // 10 = kCGEventKeyDown
+        let config = &*(user_data as *const AppConfig);
+        let key_code = CGEventGetIntegerValueField(event, 70) as u16;
+        trigger_keyboard_sound(key_code, config);
+    }
+
+    event
+}
+
+/// Sets up system-wide NSEvent monitors for gestures/mouse + IOHIDManager & CGEventTap for keyboard
 pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
     if !is_accessibility_trusted(true) {
         eprintln!("[Haptic] Accessibility permission requested. Please enable in System Settings.");
     }
 
-    // 1. Dedicated IOHIDManager background thread for 100% reliable hardware keystroke detection
-    let config_kb = Arc::clone(&config);
-    std::thread::spawn(move || unsafe {
-        let raw_config = Arc::into_raw(config_kb) as *mut c_void;
-
-        let manager = IOHIDManagerCreate(std::ptr::null_mut(), 0);
-        if manager.is_null() {
-            eprintln!("[Haptic] Failed to create IOHIDManager.");
-            return;
-        }
-
-        IOHIDManagerSetDeviceMatchingMultiple(manager, std::ptr::null_mut());
-        IOHIDManagerRegisterInputValueCallback(manager, hid_keyboard_callback, raw_config);
-        IOHIDManagerScheduleWithRunLoop(
-            manager,
-            CFRunLoopGetCurrent() as _,
-            kCFRunLoopCommonModes as _,
-        );
-
-        let open_res = IOHIDManagerOpen(manager, 0);
-        println!("[Haptic] IOHIDManager Keyboard Engine initialized (result: {}).", open_res);
-
-        CFRunLoopRun();
-    });
-
-    // 2. NSEvent Monitors for Mouse and Multi-Touch Gestures
-    let state = Arc::new(Mutex::new(MonitorState {
-        config,
-        accumulated_mouse_dist: 0.0,
-        accumulated_scroll: 0.0,
-        accumulated_pinch: 0.0,
-        accumulated_rotate: 0.0,
-        last_haptic_time: Instant::now(),
-    }));
+    let raw_config = Arc::into_raw(Arc::clone(&config)) as *mut c_void;
 
     unsafe {
+        let main_run_loop = CFRunLoopGetMain();
+
+        // 1. Setup IOHIDManager directly on Main Run Loop (kCFRunLoopCommonModes)
+        let hid_mgr = IOHIDManagerCreate(std::ptr::null_mut(), 0);
+        if !hid_mgr.is_null() {
+            IOHIDManagerSetDeviceMatchingMultiple(hid_mgr, std::ptr::null_mut());
+            IOHIDManagerRegisterInputValueCallback(hid_mgr, hid_keyboard_callback, raw_config);
+            IOHIDManagerScheduleWithRunLoop(
+                hid_mgr,
+                main_run_loop as _,
+                kCFRunLoopCommonModes as _,
+            );
+            let open_res = IOHIDManagerOpen(hid_mgr, 0);
+            println!("[Haptic] IOHIDManager scheduled on Main RunLoop (result: {}).", open_res);
+        }
+
+        // 2. Setup CGEventTap fallback directly on Main Run Loop
+        let tap = CGEventTapCreate(
+            1, // kCGSessionEventTap
+            0, // kCGHeadInsertEventTap
+            1, // kCGEventTapOptionListenOnly
+            1 << 10, // kCGEventKeyDown
+            cg_keyboard_callback,
+            raw_config,
+        );
+
+        if !tap.is_null() {
+            KEYBOARD_TAP_REF.store(tap as usize, Ordering::Relaxed);
+            let loop_source = core_foundation::mach_port::CFMachPortCreateRunLoopSource(
+                std::ptr::null_mut(),
+                tap as _,
+                0,
+            );
+            CFRunLoopAddSource(main_run_loop, loop_source, kCFRunLoopCommonModes);
+            CGEventTapEnable(tap, true);
+            println!("[Haptic] CGEventTap scheduled on Main RunLoop.");
+        }
+
+        // 3. NSEvent Monitors for Mouse and Multi-Touch Gestures
+        let state = Arc::new(Mutex::new(MonitorState {
+            config,
+            accumulated_mouse_dist: 0.0,
+            accumulated_scroll: 0.0,
+            accumulated_pinch: 0.0,
+            accumulated_rotate: 0.0,
+            last_haptic_time: Instant::now(),
+        }));
+
         let mask: u64 = (1 << 5)
             | (1 << 6)
             | (1 << 7)
