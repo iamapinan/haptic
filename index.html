@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Haptic for macOS — Tactile Feedback & Mechanical Keyboard Audio</title>
+    <title>Haptic for macOS — Tactile Touch & Mechanical Keyboard Audio</title>
     <meta name="description" content="Lightweight native macOS menu bar app written in Rust. Adds haptic feedback to your trackpad and realistic mechanical keyboard sounds when typing.">
     <meta property="og:title" content="Haptic for macOS — Tactile Touch & Mechanical Keyboard Audio">
-    <meta property="og:description" content="เพิ่มสัมผัส Haptic Feedback ให้กับ Trackpad และเสียงพิมพ์ Mechanical Keyboard บน Mac">
+    <meta property="og:description" content="Tactile haptic feedback for your Trackpad & crisp mechanical typing sounds on Mac.">
     <meta property="og:image" content="icon.png">
     <link rel="icon" type="image/png" href="icon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -27,11 +27,21 @@
                 <span class="version-badge">v0.1.0</span>
             </a>
             <nav class="nav-links">
-                <a href="#features">Features</a>
-                <a href="#playground">Interactive Demo</a>
-                <a href="#install">Install</a>
+                <a href="#features" data-i18n="nav_features">Features</a>
+                <a href="#playground" data-i18n="nav_demo">Interactive Demo</a>
+                <a href="#install" data-i18n="nav_install">Install</a>
+                
+                <!-- Language Switcher -->
+                <div class="lang-switcher">
+                    <button class="lang-btn" id="langToggle" aria-label="Switch Language">
+                        <span class="lang-opt" id="langTH">TH</span>
+                        <span class="lang-divider">/</span>
+                        <span class="lang-opt active" id="langEN">EN</span>
+                    </button>
+                </div>
+
                 <a href="https://github.com/iamapinan/haptic" target="_blank" rel="noopener" class="nav-github">
-                    <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
+                    <svg height="18" width="18" viewBox="0 0 16 16" fill="currentColor">
                         <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
                     </svg>
                     GitHub
@@ -46,16 +56,16 @@
             <div class="container">
                 <div class="hero-badge">
                     <span class="pulse-dot"></span>
-                    <span>Pure Rust Native macOS Menu Bar Utility</span>
+                    <span data-i18n="hero_badge">Pure Rust Native macOS Menu Bar Utility</span>
                 </div>
                 
-                <h1 class="hero-title">
+                <h1 class="hero-title" data-i18n="hero_title">
                     Tactile Haptics & <br>
                     <span class="gradient-text">Mechanical Keyboard</span> on Mac
                 </h1>
                 
-                <p class="hero-description">
-                    เพิ่มสัมผัสแรงสั่น Haptic ให้กับ Trackpad เมื่อเลื่อนเมาส์หรือ scroll และจำลองเสียงคลิก Mechanical Switch ที่นุ่มแน่นขณะพิมพ์งาน ทำงานเงียบๆ บน Menu Bar ไม่กินแรม ไม่หน่วงเครื่อง
+                <p class="hero-description" data-i18n="hero_desc">
+                    Adds tactile haptic feedback to your Trackpad as you move and scroll, with realistic mechanical switch click sounds as you type. Lightweight, quiet in your menu bar, zero memory overhead.
                 </p>
 
                 <div class="hero-actions">
@@ -65,23 +75,23 @@
                             <polyline points="7 10 12 15 17 10"/>
                             <line x1="12" y1="15" x2="12" y2="3"/>
                         </svg>
-                        Download Haptic.dmg
-                        <span class="btn-subtext">macOS 11.0+ (Universal)</span>
+                        <span data-i18n="btn_download">Download Haptic.dmg</span>
+                        <span class="btn-subtext">macOS 11.0+ (Apple Silicon &amp; Intel)</span>
                     </a>
                     <a href="#playground" class="btn btn-secondary">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <polygon points="5 3 19 12 5 21 5 3"/>
                         </svg>
-                        Try Live Demo
+                        <span data-i18n="btn_demo">Try Live Demo</span>
                     </a>
                 </div>
 
                 <div class="hero-meta">
-                    <span>⚡️ Lightweight &lt; 10MB RAM</span>
+                    <span data-i18n="meta_ram">⚡️ Lightweight &lt; 10MB RAM</span>
                     <span class="dot-separator">•</span>
-                    <span>🦀 Pure Rust & Native Cocoa</span>
+                    <span data-i18n="meta_rust">🦀 Pure Rust &amp; Native Cocoa</span>
                     <span class="dot-separator">•</span>
-                    <span>🔒 100% Offline & Open Source</span>
+                    <span data-i18n="meta_offline">🔒 100% Offline &amp; Open Source</span>
                 </div>
             </div>
         </section>
@@ -90,14 +100,14 @@
         <section id="playground" class="playground-section">
             <div class="container">
                 <div class="section-header">
-                    <h2 class="section-title">ลองสัมผัสประสบการณ์สดบนเบราว์เซอร์</h2>
-                    <p class="section-subtitle">ทดลองเลื่อนเมาส์, scroll บนแผ่น Trackpad หรือลองพิมพ์คีย์บอร์ดด้านล่างเพื่อฟังเสียงจำลอง</p>
+                    <h2 class="section-title" data-i18n="demo_title">Interactive Browser Simulator</h2>
+                    <p class="section-subtitle" data-i18n="demo_subtitle">Move your cursor, scroll on the virtual trackpad, or type on your physical keyboard to test the sound engine live.</p>
                 </div>
 
                 <div class="playground-card">
                     <div class="playground-controls">
                         <div class="control-group">
-                            <label>Switch Sound Profile:</label>
+                            <label data-i18n="ctrl_profile">Switch Sound Profile:</label>
                             <div class="btn-toggle-group" id="soundProfileGroup">
                                 <button class="toggle-btn active" data-profile="thock">Cream (Thocky)</button>
                                 <button class="toggle-btn" data-profile="blue">Blue (Clicky)</button>
@@ -105,11 +115,11 @@
                             </div>
                         </div>
                         <div class="control-group">
-                            <label>Haptic Tick Intensity:</label>
+                            <label data-i18n="ctrl_intensity">Haptic Tick Intensity:</label>
                             <div class="btn-toggle-group" id="hapticIntensityGroup">
-                                <button class="toggle-btn active" data-intensity="generic">Light</button>
-                                <button class="toggle-btn" data-intensity="alignment">Medium</button>
-                                <button class="toggle-btn" data-intensity="level">Firm</button>
+                                <button class="toggle-btn active" data-intensity="generic" data-i18n="opt_light">Light</button>
+                                <button class="toggle-btn" data-intensity="alignment" data-i18n="opt_med">Medium</button>
+                                <button class="toggle-btn" data-intensity="level" data-i18n="opt_firm">Firm</button>
                             </div>
                         </div>
                     </div>
@@ -125,11 +135,11 @@
                                         <line x1="12" y1="14" x2="12" y2="20"/>
                                     </svg>
                                 </div>
-                                <h3>แผ่นทดสอบ Trackpad & Scroll</h3>
-                                <p>เลื่อนเมาส์ไปมา หรือเลื่อนลูกกลิ้ง Scroll Wheel ภายในกรอบนี้</p>
+                                <h3 data-i18n="trackpad_title">Trackpad &amp; Scroll Test Pad</h3>
+                                <p data-i18n="trackpad_desc">Move cursor around or use mouse wheel / trackpad scroll inside this box</p>
                                 <div class="haptic-visualizer" id="hapticPulse"></div>
                                 <div class="stats-badge">
-                                    <span>Haptic Pulses: <strong id="pulseCount">0</strong></span>
+                                    <span data-i18n="pulse_label">Haptic Pulses:</span> <strong id="pulseCount">0</strong>
                                 </div>
                             </div>
                         </div>
@@ -137,10 +147,10 @@
                         <!-- Simulated Keyboard Zone -->
                         <div class="demo-keyboard">
                             <div class="keyboard-header">
-                                <h3>ทดลองพิมพ์คีย์บอร์ด</h3>
-                                <span class="badge-live">กดแป้นพิมพ์จริงได้เลย</span>
+                                <h3 data-i18n="kb_title">Type on Keyboard</h3>
+                                <span class="badge-live" data-i18n="kb_badge">Type on real keys</span>
                             </div>
-                            <input type="text" id="demoInput" class="demo-input" placeholder="พิมพ์ข้อความทดสอบเสียงที่นี่ (เช่น Hello Haptic)..." autofocus>
+                            <input type="text" id="demoInput" class="demo-input" placeholder="Type here to hear the mechanical switches (e.g. Hello Haptic)..." autofocus>
                             
                             <div class="virtual-keys" id="virtualKeyboard">
                                 <div class="key-row">
@@ -179,7 +189,7 @@
                                     <div class="key key-wide" data-key="Enter">⏎ Enter</div>
                                 </div>
                                 <div class="key-row">
-                                    <div class="key key-space" data-key=" ">Spacebar (Deep Thock)</div>
+                                    <div class="key key-space" data-key=" " data-i18n="key_space">Spacebar (Deep Thock)</div>
                                 </div>
                             </div>
                         </div>
@@ -192,45 +202,45 @@
         <section id="features" class="features-section">
             <div class="container">
                 <div class="section-header">
-                    <h2 class="section-title">ฟังก์ชันและคุณสมบัติครบครัน</h2>
-                    <p class="section-subtitle">ออกแบบมาเพื่อความลื่นไหล เป็นธรรมชาติ และตอบสนองรวดเร็วระดับฮาร์ดแวร์</p>
+                    <h2 class="section-title" data-i18n="feat_title">Engineered for Performance</h2>
+                    <p class="section-subtitle" data-i18n="feat_subtitle">Native system integration with zero lag and deeply satisfying tactile feedback.</p>
                 </div>
 
                 <div class="bento-grid">
                     <div class="bento-card bento-wide">
                         <div class="bento-icon">⚡️</div>
-                        <h3>Force Touch Trackpad Haptic</h3>
-                        <p>เชื่อมต่อไปยังฮาร์ดแวร์ Taptic Engine ของ MacBook และ Magic Trackpad โดยตรง มอบแรงสั่นสะเทือนที่แม่นยำขณะเคลื่อนที่หรือ scroll ผ่านหน้าต่างต่างๆ</p>
+                        <h3 data-i18n="f1_title">Force Touch Trackpad Haptics</h3>
+                        <p data-i18n="f1_desc">Directly drives the hardware Taptic Engine inside MacBook and Magic Trackpads for authentic mechanical notches as you move and scroll across any application.</p>
                     </div>
 
                     <div class="bento-card">
                         <div class="bento-icon">🔊</div>
-                        <h3>Speaker Audio Tick Simulation</h3>
-                        <p>สำหรับผู้ใช้เมาส์ทั่วไป หรือ Mac mini / Mac Studio ที่ไม่มี Trackpad แอปสามารถจำลองเสียงติ๊กเบาๆ สไตล์ Apple Watch ผ่านลำโพงได้</p>
+                        <h3 data-i18n="f2_title">Speaker Audio Tick Simulation</h3>
+                        <p data-i18n="f2_desc">For regular optical mice or desktop Macs (Mac mini / Mac Studio), simulate Apple Watch-like micro-ticks through speakers.</p>
                     </div>
 
                     <div class="bento-card">
                         <div class="bento-icon">🖐</div>
-                        <h3>Multi-Touch Gestures</h3>
-                        <p>สั่นตอบสนองเวลา Pinch-to-zoom (ซูมภาพ), หมุน 2 นิ้ว (Rotate) และปัด 2 นิ้ว / 3 นิ้ว นำทาง (Swipe)</p>
+                        <h3 data-i18n="f3_title">Multi-Touch Gestures</h3>
+                        <p data-i18n="f3_desc">Haptic feedback on Pinch-to-zoom in photos/browsers, 2-finger rotation, and multi-finger swipe navigation.</p>
                     </div>
 
                     <div class="bento-card bento-wide">
                         <div class="bento-icon">⌨️</div>
-                        <h3>Mechanical Keyboard Audio Engine</h3>
-                        <p>ซินธิไซซ์เสียงพิมพ์แป้นพิมพ์แบบ Low-Latency (&lt;2ms) พร้อมสลับเสียง Switch ได้ 3 รูปแบบ: Cream Thock, Blue Clicky และ Vintage Typewriter พร้อมแยกเสียง Spacebar &amp; Enter</p>
+                        <h3 data-i18n="f4_title">IOKit Mechanical Keyboard Audio</h3>
+                        <p data-i18n="f4_desc">Hardware-level IOHIDManager keystroke detection with ultra low-latency (&lt;1ms) CoreAudio playback. Choose between Cream Thock, Blue Clicky, and Vintage Typewriter switches.</p>
                     </div>
 
                     <div class="bento-card">
                         <div class="bento-icon">🦀</div>
-                        <h3>Ultra Lightweight &amp; Fast</h3>
-                        <p>เขียนด้วยภาษา Rust และเชื่อมต่อ Native Cocoa AppKit โดยตรง กินแรมน้อยกว่า 10MB และไม่มีการเก็บข้อมูลผู้ใช้ใดๆ ทั้งสิ้น</p>
+                        <h3 data-i18n="f5_title">Pure Rust &amp; Native Cocoa</h3>
+                        <p data-i18n="f5_desc">Compiled to native machine code. Uses less than 10MB RAM, zero Electron bloat, and runs 100% offline with zero data tracking.</p>
                     </div>
 
                     <div class="bento-card">
                         <div class="bento-icon">🎛</div>
-                        <h3>Menu Bar Controls</h3>
-                        <p>ปรับแต่งความไว (Sensitivity), ความดังของเสียง, ระดับแรงสั่น หรือแยกเปิด/ปิดแต่ละฟังก์ชันได้อิสระจาก Menu Bar</p>
+                        <h3 data-i18n="f6_title">Customizable Menu Bar Controls</h3>
+                        <p data-i18n="f6_desc">Easily tune sensitivity thresholds, volume levels, vibration intensity, or toggle individual effects on and off from the status menu.</p>
                     </div>
                 </div>
             </div>
@@ -240,31 +250,31 @@
         <section id="install" class="install-section">
             <div class="container">
                 <div class="section-header">
-                    <h2 class="section-title">วิธีติดตั้งและเริ่มใช้งาน</h2>
-                    <p class="section-subtitle">ติดตั้งง่ายใน 3 ขั้นตอน ไม่ต้องตั้งค่าซับซ้อน</p>
+                    <h2 class="section-title" data-i18n="ins_title">Get Started in 3 Simple Steps</h2>
+                    <p class="section-subtitle" data-i18n="ins_subtitle">Quick and straightforward installation without complex dependencies.</p>
                 </div>
 
                 <div class="steps-grid">
                     <div class="step-card">
                         <div class="step-number">1</div>
-                        <h3>ดาวน์โหลด DMG</h3>
-                        <p>ดาวน์โหลดไฟล์ตัวติดตั้ง <code>Haptic.dmg</code> จาก GitHub Releases</p>
-                        <a href="https://github.com/iamapinan/haptic/releases/download/v0.1.0/Haptic.dmg" class="step-link">Download .dmg →</a>
+                        <h3 data-i18n="step1_title">Download DMG</h3>
+                        <p data-i18n="step1_desc">Grab the latest <code>Haptic.dmg</code> installer package directly from GitHub Releases.</p>
+                        <a href="https://github.com/iamapinan/haptic/releases/download/v0.1.0/Haptic.dmg" class="step-link" data-i18n="step1_link">Download .dmg →</a>
                     </div>
                     <div class="step-card">
                         <div class="step-number">2</div>
-                        <h3>ลากเข้าโฟลเดอร์ Applications</h3>
-                        <p>เปิดไฟล์ DMG แล้วลากไอคอน <code>Haptic.app</code> ไปวางในโฟลเดอร์ Applications</p>
+                        <h3 data-i18n="step2_title">Drag to Applications</h3>
+                        <p data-i18n="step2_desc">Open the DMG file and drag <code>Haptic.app</code> directly into your Applications folder.</p>
                     </div>
                     <div class="step-card">
                         <div class="step-number">3</div>
-                        <h3>อนุญาตสิทธิ์ Accessibility</h3>
-                        <p>เปิดแอป แล้วเปิดสิทธิ์ใน System Settings ➜ Privacy &amp; Security ➜ Accessibility เพื่อให้แอปตรวจจับเมาส์และการพิมพ์ได้</p>
+                        <h3 data-i18n="step3_title">Enable Accessibility</h3>
+                        <p data-i18n="step3_desc">Launch the app and grant Accessibility permissions in System Settings so it can monitor mouse and key events.</p>
                     </div>
                 </div>
 
                 <div class="source-box">
-                    <h3>หรือ Build เองจาก Source Code ด้วย Cargo:</h3>
+                    <h3 data-i18n="build_title">Or build from source code with Cargo:</h3>
                     <div class="code-block">
                         <code>git clone https://github.com/iamapinan/haptic.git
 cd haptic
@@ -283,7 +293,7 @@ cargo run --release</code>
                     <img src="icon.png" alt="Haptic Logo" class="brand-icon">
                     <span class="brand-name">Haptic for macOS</span>
                 </div>
-                <p class="footer-desc">Open Source Native macOS Utility written in Rust.</p>
+                <p class="footer-desc" data-i18n="footer_desc">Open Source Native macOS Utility written in Rust.</p>
             </div>
             <div class="footer-right">
                 <p>Released under the <a href="https://github.com/iamapinan/haptic/blob/main/LICENSE" target="_blank">MIT License</a></p>

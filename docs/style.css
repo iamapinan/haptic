@@ -139,7 +139,7 @@ h1, h2, h3, .brand-name {
 .nav-links {
     display: flex;
     align-items: center;
-    gap: 24px;
+    gap: 20px;
 }
 
 .nav-links a {
@@ -152,6 +152,48 @@ h1, h2, h3, .brand-name {
 
 .nav-links a:hover {
     color: var(--text-main);
+}
+
+/* Language Switcher Button */
+.lang-switcher {
+    display: flex;
+    align-items: center;
+}
+
+.lang-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-color);
+    padding: 5px 12px;
+    border-radius: var(--radius-full);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.lang-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.lang-opt {
+    opacity: 0.5;
+    transition: var(--transition);
+}
+
+.lang-opt.active {
+    opacity: 1;
+    color: var(--primary);
+}
+
+.lang-divider {
+    opacity: 0.3;
+    font-size: 0.75rem;
 }
 
 .nav-github {
