@@ -5,7 +5,7 @@ use block::ConcreteBlock;
 use core_foundation::base::TCFType;
 use core_foundation::boolean::CFBoolean;
 use core_foundation::dictionary::CFDictionary;
-use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoopAddSource, CFRunLoopGetMain};
+use core_foundation::runloop::{kCFRunLoopCommonModes, kCFRunLoopDefaultMode, CFRunLoopAddSource, CFRunLoopGetMain};
 use core_foundation::string::CFString;
 use objc::{class, msg_send, sel, sel_impl};
 use std::ffi::c_void;
@@ -299,7 +299,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
     unsafe {
         let main_run_loop = CFRunLoopGetMain();
 
-        // 1. Setup IOHIDManager directly on Main Run Loop (kCFRunLoopCommonModes)
+        // 1. Setup IOHIDManager directly on Main Run Loop (CommonModes + DefaultMode)
         let hid_mgr = IOHIDManagerCreate(std::ptr::null_mut(), 0);
         if !hid_mgr.is_null() {
             IOHIDManagerSetDeviceMatchingMultiple(hid_mgr, std::ptr::null_mut());
@@ -308,6 +308,11 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
                 hid_mgr,
                 main_run_loop as _,
                 kCFRunLoopCommonModes as _,
+            );
+            IOHIDManagerScheduleWithRunLoop(
+                hid_mgr,
+                main_run_loop as _,
+                kCFRunLoopDefaultMode as _,
             );
             let open_res = IOHIDManagerOpen(hid_mgr, 0);
             println!("[Haptic] IOHIDManager scheduled on Main RunLoop (result: {}).", open_res);
@@ -331,6 +336,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
                 0,
             );
             CFRunLoopAddSource(main_run_loop, loop_source, kCFRunLoopCommonModes);
+            CFRunLoopAddSource(main_run_loop, loop_source, kCFRunLoopDefaultMode);
             CGEventTapEnable(tap, true);
             println!("[Haptic] CGEventTap scheduled on Main RunLoop.");
         }

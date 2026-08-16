@@ -25,4 +25,7 @@ chmod +x "$MACOS_DIR/haptic-mac"
 cp Info.plist "$CONTENTS_DIR/Info.plist"
 cp AppIcon.icns "$RESOURCES_DIR/AppIcon.icns"
 
+echo "🔏 Code signing $APP_NAME..."
+codesign --force --deep --sign - "$APP_NAME"
+
 echo "✅ Created $APP_NAME successfully!"
