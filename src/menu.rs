@@ -426,7 +426,11 @@ extern "C" fn on_test_haptic(_this: &Object, _cmd: Sel, _sender: Id) {
 
 extern "C" fn on_check_accessibility(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
-        let _ = is_accessibility_trusted(true);
+        if is_accessibility_trusted(false) {
+            println!("[Haptic] Accessibility permission is already granted.");
+        } else {
+            let _ = is_accessibility_trusted(true);
+        }
     });
 }
 

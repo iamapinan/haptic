@@ -279,9 +279,18 @@ unsafe extern "C" fn cg_keyboard_callback(
     event
 }
 
+pub fn check_and_request_accessibility() -> bool {
+    // Check silently first without showing dialog
+    if is_accessibility_trusted(false) {
+        return true;
+    }
+    // Only prompt user if not already granted
+    is_accessibility_trusted(true)
+}
+
 /// Sets up system-wide NSEvent monitors for gestures/mouse + IOHIDManager & CGEventTap for keyboard
 pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
-    if !is_accessibility_trusted(true) {
+    if !check_and_request_accessibility() {
         eprintln!("[Haptic] Accessibility permission requested. Please enable in System Settings.");
     }
 
