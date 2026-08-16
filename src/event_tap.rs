@@ -77,6 +77,7 @@ fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
         let now = Instant::now();
         let min_interval = std::time::Duration::from_millis(state.config.get_min_interval_ms());
         let pattern = state.config.get_pattern();
+        let output_mode = state.config.get_output_mode();
 
         // 1. Mouse Moved (5), LeftMouseDragged (6), RightMouseDragged (7), OtherMouseDragged (27)
         if event_type == 5 || event_type == 6 || event_type == 7 || event_type == 27 {
@@ -91,7 +92,7 @@ fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
 
                     if state.accumulated_mouse_dist >= threshold {
                         if now.duration_since(state.last_haptic_time) >= min_interval {
-                            perform_haptic(pattern);
+                            perform_haptic(pattern, output_mode);
                             state.last_haptic_time = now;
                         }
                         state.accumulated_mouse_dist = 0.0;
@@ -121,7 +122,7 @@ fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
 
                     if state.accumulated_scroll >= threshold {
                         if now.duration_since(state.last_haptic_time) >= min_interval {
-                            perform_haptic(pattern);
+                            perform_haptic(pattern, output_mode);
                             state.last_haptic_time = now;
                         }
                         state.accumulated_scroll = 0.0;
@@ -139,7 +140,7 @@ fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
 
                 if state.accumulated_pinch >= threshold {
                     if now.duration_since(state.last_haptic_time) >= min_interval {
-                        perform_haptic(pattern);
+                        perform_haptic(pattern, output_mode);
                         state.last_haptic_time = now;
                     }
                     state.accumulated_pinch = 0.0;
@@ -156,7 +157,7 @@ fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
 
                 if state.accumulated_rotate >= threshold {
                     if now.duration_since(state.last_haptic_time) >= min_interval {
-                        perform_haptic(pattern);
+                        perform_haptic(pattern, output_mode);
                         state.last_haptic_time = now;
                     }
                     state.accumulated_rotate = 0.0;
@@ -168,7 +169,7 @@ fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
         if event_type == 31 {
             if state.config.is_gestures_enabled() {
                 if now.duration_since(state.last_haptic_time) >= min_interval {
-                    perform_haptic(pattern);
+                    perform_haptic(pattern, output_mode);
                     state.last_haptic_time = now;
                 }
             }
@@ -186,11 +187,9 @@ unsafe extern "C" fn keyboard_event_tap_callback(
         return event;
     }
 
-    // 10 = kCGEventKeyDown
     if event_type == 10 {
         let config = &*(user_data as *const AppConfig);
         if config.is_enabled() && config.is_keyboard_sound_enabled() {
-            // 70 = kCGKeyboardEventKeycode, 71 = kCGKeyboardEventAutorepeat
             let key_code = CGEventGetIntegerValueField(event, 70) as u16;
             let is_repeat = CGEventGetIntegerValueField(event, 71) != 0;
             let profile = config.get_sound_profile();
@@ -215,7 +214,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
         eprintln!("[Haptic] Accessibility permission requested. Please enable in System Settings.");
     }
 
-    // 1. Start dedicated background CGEventTap for system-wide KeyDown events
+    // 1. Dedicated background CGEventTap for system-wide KeyDown events
     let config_kb = Arc::clone(&config);
     std::thread::spawn(move || unsafe {
         let mask: u64 = 1 << 10; // kCGEventKeyDown
@@ -243,12 +242,11 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
                 break;
             }
 
-            // Retry after 1 second if accessibility was not yet granted on startup
             std::thread::sleep(std::time::Duration::from_millis(1000));
         }
     });
 
-    // 2. Start NSEvent Monitors for Mouse and Multi-Touch Gestures
+    // 2. NSEvent Monitors for Mouse and Multi-Touch Gestures
     let state = Arc::new(Mutex::new(MonitorState {
         config,
         accumulated_mouse_dist: 0.0,

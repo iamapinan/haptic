@@ -1,4 +1,4 @@
-use crate::config::{AppConfig, Sensitivity};
+use crate::config::{AppConfig, HapticOutputMode, Sensitivity};
 use crate::event_tap::is_accessibility_trusted;
 use crate::haptic::{perform_haptic, HapticPattern, Id, NIL};
 use crate::sound::{init_sound_engine, play_keyboard_sound, SoundProfile};
@@ -18,6 +18,7 @@ static DELEGATE_REF: AtomicUsize = AtomicUsize::new(0);
 static STATUS_ITEM_REF: AtomicUsize = AtomicUsize::new(0);
 static MENU_REF: AtomicUsize = AtomicUsize::new(0);
 static PATTERN_MENU_REF: AtomicUsize = AtomicUsize::new(0);
+static OUTPUT_MODE_MENU_REF: AtomicUsize = AtomicUsize::new(0);
 static MOUSE_MENU_REF: AtomicUsize = AtomicUsize::new(0);
 static SCROLL_MENU_REF: AtomicUsize = AtomicUsize::new(0);
 static SOUND_PROFILE_MENU_REF: AtomicUsize = AtomicUsize::new(0);
@@ -30,6 +31,10 @@ const TAG_ENABLE_MOUSE: isize = 102;
 const TAG_ENABLE_SCROLL: isize = 103;
 const TAG_ENABLE_GESTURES: isize = 104;
 const TAG_ENABLE_KEYBOARD: isize = 105;
+
+const TAG_MODE_TRACKPAD: isize = 151;
+const TAG_MODE_SPEAKER: isize = 152;
+const TAG_MODE_BOTH: isize = 153;
 
 const TAG_PAT_GENERIC: isize = 201;
 const TAG_PAT_ALIGNMENT: isize = 202;
@@ -71,6 +76,7 @@ pub fn update_menu_state() {
     unsafe {
         let menu: Id = MENU_REF.load(Ordering::Relaxed) as Id;
         let pattern_menu: Id = PATTERN_MENU_REF.load(Ordering::Relaxed) as Id;
+        let output_mode_menu: Id = OUTPUT_MODE_MENU_REF.load(Ordering::Relaxed) as Id;
         let mouse_menu: Id = MOUSE_MENU_REF.load(Ordering::Relaxed) as Id;
         let scroll_menu: Id = SCROLL_MENU_REF.load(Ordering::Relaxed) as Id;
         let sound_profile_menu: Id = SOUND_PROFILE_MENU_REF.load(Ordering::Relaxed) as Id;
@@ -87,6 +93,7 @@ pub fn update_menu_state() {
         let scroll_enabled = config.is_scroll_enabled();
         let gestures_enabled = config.is_gestures_enabled();
         let keyboard_sound_enabled = config.is_keyboard_sound_enabled();
+        let output_mode = config.get_output_mode();
         let pattern = config.get_pattern();
         let mouse_sens = config.get_mouse_sensitivity();
         let scroll_sens = config.get_scroll_sensitivity();
@@ -138,6 +145,11 @@ pub fn update_menu_state() {
         set_item_state(menu, TAG_ENABLE_GESTURES, gestures_enabled);
         set_item_state(menu, TAG_ENABLE_KEYBOARD, keyboard_sound_enabled);
 
+        // Update Output Mode submenu
+        set_item_state(output_mode_menu, TAG_MODE_TRACKPAD, output_mode == HapticOutputMode::TrackpadOnly);
+        set_item_state(output_mode_menu, TAG_MODE_SPEAKER, output_mode == HapticOutputMode::SpeakerOnly);
+        set_item_state(output_mode_menu, TAG_MODE_BOTH, output_mode == HapticOutputMode::Both);
+
         // Update Pattern submenu
         set_item_state(pattern_menu, TAG_PAT_GENERIC, pattern == HapticPattern::Generic);
         set_item_state(pattern_menu, TAG_PAT_ALIGNMENT, pattern == HapticPattern::Alignment);
@@ -173,7 +185,7 @@ extern "C" fn on_toggle_enabled(_this: &Object, _cmd: Sel, _sender: Id) {
         let config = get_config();
         let new_val = config.toggle_enabled();
         if new_val {
-            perform_haptic(config.get_pattern());
+            perform_haptic(config.get_pattern(), config.get_output_mode());
         }
         update_menu_state();
     });
@@ -184,7 +196,7 @@ extern "C" fn on_toggle_mouse(_this: &Object, _cmd: Sel, _sender: Id) {
         let config = get_config();
         let new_val = config.toggle_mouse_move();
         if new_val {
-            perform_haptic(config.get_pattern());
+            perform_haptic(config.get_pattern(), config.get_output_mode());
         }
         update_menu_state();
     });
@@ -195,7 +207,7 @@ extern "C" fn on_toggle_scroll(_this: &Object, _cmd: Sel, _sender: Id) {
         let config = get_config();
         let new_val = config.toggle_scroll();
         if new_val {
-            perform_haptic(config.get_pattern());
+            perform_haptic(config.get_pattern(), config.get_output_mode());
         }
         update_menu_state();
     });
@@ -206,7 +218,7 @@ extern "C" fn on_toggle_gestures(_this: &Object, _cmd: Sel, _sender: Id) {
         let config = get_config();
         let new_val = config.toggle_gestures();
         if new_val {
-            perform_haptic(config.get_pattern());
+            perform_haptic(config.get_pattern(), config.get_output_mode());
         }
         update_menu_state();
     });
@@ -223,11 +235,39 @@ extern "C" fn on_toggle_keyboard(_this: &Object, _cmd: Sel, _sender: Id) {
     });
 }
 
+// Output mode handlers
+extern "C" fn on_set_mode_trackpad(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_output_mode(HapticOutputMode::TrackpadOnly);
+        perform_haptic(config.get_pattern(), HapticOutputMode::TrackpadOnly);
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_set_mode_speaker(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_output_mode(HapticOutputMode::SpeakerOnly);
+        perform_haptic(config.get_pattern(), HapticOutputMode::SpeakerOnly);
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_set_mode_both(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_output_mode(HapticOutputMode::Both);
+        perform_haptic(config.get_pattern(), HapticOutputMode::Both);
+        update_menu_state();
+    });
+}
+
 extern "C" fn on_set_pattern_generic(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_pattern(HapticPattern::Generic);
-        perform_haptic(HapticPattern::Generic);
+        perform_haptic(HapticPattern::Generic, config.get_output_mode());
         update_menu_state();
     });
 }
@@ -236,7 +276,7 @@ extern "C" fn on_set_pattern_alignment(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_pattern(HapticPattern::Alignment);
-        perform_haptic(HapticPattern::Alignment);
+        perform_haptic(HapticPattern::Alignment, config.get_output_mode());
         update_menu_state();
     });
 }
@@ -245,7 +285,7 @@ extern "C" fn on_set_pattern_level(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_pattern(HapticPattern::LevelChange);
-        perform_haptic(HapticPattern::LevelChange);
+        perform_haptic(HapticPattern::LevelChange, config.get_output_mode());
         update_menu_state();
     });
 }
@@ -254,7 +294,7 @@ extern "C" fn on_set_mouse_sens_high(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_mouse_sensitivity(Sensitivity::High);
-        perform_haptic(config.get_pattern());
+        perform_haptic(config.get_pattern(), config.get_output_mode());
         update_menu_state();
     });
 }
@@ -263,7 +303,7 @@ extern "C" fn on_set_mouse_sens_med(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_mouse_sensitivity(Sensitivity::Medium);
-        perform_haptic(config.get_pattern());
+        perform_haptic(config.get_pattern(), config.get_output_mode());
         update_menu_state();
     });
 }
@@ -272,7 +312,7 @@ extern "C" fn on_set_mouse_sens_low(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_mouse_sensitivity(Sensitivity::Low);
-        perform_haptic(config.get_pattern());
+        perform_haptic(config.get_pattern(), config.get_output_mode());
         update_menu_state();
     });
 }
@@ -281,7 +321,7 @@ extern "C" fn on_set_scroll_sens_high(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_scroll_sensitivity(Sensitivity::High);
-        perform_haptic(config.get_pattern());
+        perform_haptic(config.get_pattern(), config.get_output_mode());
         update_menu_state();
     });
 }
@@ -290,7 +330,7 @@ extern "C" fn on_set_scroll_sens_med(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_scroll_sensitivity(Sensitivity::Medium);
-        perform_haptic(config.get_pattern());
+        perform_haptic(config.get_pattern(), config.get_output_mode());
         update_menu_state();
     });
 }
@@ -299,7 +339,7 @@ extern "C" fn on_set_scroll_sens_low(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
         config.set_scroll_sensitivity(Sensitivity::Low);
-        perform_haptic(config.get_pattern());
+        perform_haptic(config.get_pattern(), config.get_output_mode());
         update_menu_state();
     });
 }
@@ -379,7 +419,7 @@ extern "C" fn on_set_vol_0(_this: &Object, _cmd: Sel, _sender: Id) {
 extern "C" fn on_test_haptic(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
-        perform_haptic(config.get_pattern());
+        perform_haptic(config.get_pattern(), config.get_output_mode());
         play_keyboard_sound(49, config.get_sound_profile(), config.get_sound_volume());
     });
 }
@@ -415,6 +455,10 @@ fn register_action_handler_class() -> &'static Class {
             decl.add_method(sel!(toggleScroll:), on_toggle_scroll as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(toggleGestures:), on_toggle_gestures as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(toggleKeyboard:), on_toggle_keyboard as extern "C" fn(&Object, Sel, Id));
+
+            decl.add_method(sel!(setModeTrackpad:), on_set_mode_trackpad as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setModeSpeaker:), on_set_mode_speaker as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setModeBoth:), on_set_mode_both as extern "C" fn(&Object, Sel, Id));
 
             decl.add_method(sel!(setPatternGeneric:), on_set_pattern_generic as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(setPatternAlignment:), on_set_pattern_alignment as extern "C" fn(&Object, Sel, Id));
@@ -518,7 +562,19 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
 
         add_separator(menu);
 
-        // 3. Pattern / Intensity Submenu
+        // 3. Haptic Output Mode Submenu
+        let output_mode_menu: Id = msg_send![class!(NSMenu), new];
+        let () = msg_send![output_mode_menu, retain];
+        OUTPUT_MODE_MENU_REF.store(output_mode_menu as usize, Ordering::Relaxed);
+
+        add_item(output_mode_menu, "Trackpad Vibration Only (Default)", Some(sel!(setModeTrackpad:)), TAG_MODE_TRACKPAD, "");
+        add_item(output_mode_menu, "Speaker Audio Tick (For Normal Mouse)", Some(sel!(setModeSpeaker:)), TAG_MODE_SPEAKER, "");
+        add_item(output_mode_menu, "Both (Trackpad + Speaker Tick)", Some(sel!(setModeBoth:)), TAG_MODE_BOTH, "");
+
+        let output_mode_item = add_item(menu, "Haptic Output Mode", None, 0, "");
+        let () = msg_send![output_mode_item, setSubmenu: output_mode_menu];
+
+        // 4. Pattern / Intensity Submenu
         let pattern_menu: Id = msg_send![class!(NSMenu), new];
         let () = msg_send![pattern_menu, retain];
         PATTERN_MENU_REF.store(pattern_menu as usize, Ordering::Relaxed);
@@ -530,7 +586,7 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
         let pattern_item = add_item(menu, "Haptic Pattern / Intensity", None, 0, "");
         let () = msg_send![pattern_item, setSubmenu: pattern_menu];
 
-        // 4. Mouse Sensitivity Submenu
+        // 5. Mouse Sensitivity Submenu
         let mouse_sens_menu: Id = msg_send![class!(NSMenu), new];
         let () = msg_send![mouse_sens_menu, retain];
         MOUSE_MENU_REF.store(mouse_sens_menu as usize, Ordering::Relaxed);
@@ -542,7 +598,7 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
         let mouse_sens_item = add_item(menu, "Mouse Sensitivity", None, 0, "");
         let () = msg_send![mouse_sens_item, setSubmenu: mouse_sens_menu];
 
-        // 5. Scroll Sensitivity Submenu
+        // 6. Scroll Sensitivity Submenu
         let scroll_sens_menu: Id = msg_send![class!(NSMenu), new];
         let () = msg_send![scroll_sens_menu, retain];
         SCROLL_MENU_REF.store(scroll_sens_menu as usize, Ordering::Relaxed);
@@ -556,7 +612,7 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
 
         add_separator(menu);
 
-        // 6. Keyboard Sound Switch Profile Submenu
+        // 7. Keyboard Sound Switch Profile Submenu
         let sound_profile_menu: Id = msg_send![class!(NSMenu), new];
         let () = msg_send![sound_profile_menu, retain];
         SOUND_PROFILE_MENU_REF.store(sound_profile_menu as usize, Ordering::Relaxed);
@@ -568,7 +624,7 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
         let sound_profile_item = add_item(menu, "Keyboard Switch Sound", None, 0, "");
         let () = msg_send![sound_profile_item, setSubmenu: sound_profile_menu];
 
-        // 7. Keyboard Sound Volume Submenu
+        // 8. Keyboard Sound Volume Submenu
         let sound_vol_menu: Id = msg_send![class!(NSMenu), new];
         let () = msg_send![sound_vol_menu, retain];
         SOUND_VOL_MENU_REF.store(sound_vol_menu as usize, Ordering::Relaxed);
@@ -584,13 +640,13 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
 
         add_separator(menu);
 
-        // 8. Test & Permissions
+        // 9. Test & Permissions
         add_item(menu, "Test Haptic & Sound", Some(sel!(testHaptic:)), 0, "t");
         add_item(menu, "Check Accessibility Permissions...", Some(sel!(checkAccessibility:)), 0, "");
 
         add_separator(menu);
 
-        // 9. Quit
+        // 10. Quit
         add_item(menu, "Quit Haptic", Some(sel!(quit:)), 0, "q");
 
         // Attach menu to status item

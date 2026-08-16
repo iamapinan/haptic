@@ -4,6 +4,24 @@ use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 use std::sync::Arc;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum HapticOutputMode {
+    TrackpadOnly = 0,
+    SpeakerOnly = 1,
+    Both = 2,
+}
+
+impl HapticOutputMode {
+    pub fn from_u8(val: u8) -> Self {
+        match val {
+            0 => HapticOutputMode::TrackpadOnly,
+            1 => HapticOutputMode::SpeakerOnly,
+            2 => HapticOutputMode::Both,
+            _ => HapticOutputMode::TrackpadOnly,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Sensitivity {
     High,
     Medium,
@@ -67,12 +85,13 @@ pub struct AppConfig {
     pub scroll_enabled: AtomicBool,
     pub gestures_enabled: AtomicBool,
     pub keyboard_sound_enabled: AtomicBool,
-    pub pattern: AtomicU8,             // 0 = Generic, 1 = Alignment, 2 = LevelChange
-    pub mouse_sensitivity: AtomicU8,   // 0 = High, 1 = Medium, 2 = Low
-    pub scroll_sensitivity: AtomicU8,  // 0 = High, 1 = Medium, 2 = Low
-    pub sound_profile: AtomicU8,       // 0 = Blue, 1 = Thock, 2 = Typewriter
-    pub sound_volume: AtomicU8,        // 0 - 100 (Default: 70)
-    pub min_interval_ms: AtomicU64,    // minimum ms between consecutive haptic pulses
+    pub output_mode: AtomicU8,          // 0 = Trackpad, 1 = Speaker Tick, 2 = Both
+    pub pattern: AtomicU8,              // 0 = Generic, 1 = Alignment, 2 = LevelChange
+    pub mouse_sensitivity: AtomicU8,    // 0 = High, 1 = Medium, 2 = Low
+    pub scroll_sensitivity: AtomicU8,   // 0 = High, 1 = Medium, 2 = Low
+    pub sound_profile: AtomicU8,        // 0 = Blue, 1 = Thock, 2 = Typewriter
+    pub sound_volume: AtomicU8,         // 0 - 100 (Default: 70)
+    pub min_interval_ms: AtomicU64,     // minimum ms between consecutive haptic pulses
 }
 
 impl AppConfig {
@@ -83,6 +102,7 @@ impl AppConfig {
             scroll_enabled: AtomicBool::new(true),
             gestures_enabled: AtomicBool::new(true),
             keyboard_sound_enabled: AtomicBool::new(true),
+            output_mode: AtomicU8::new(0), // Trackpad Only
             pattern: AtomicU8::new(0), // Generic
             mouse_sensitivity: AtomicU8::new(1), // Medium
             scroll_sensitivity: AtomicU8::new(1), // Medium
@@ -135,6 +155,14 @@ impl AppConfig {
     pub fn toggle_keyboard_sound(&self) -> bool {
         let prev = self.keyboard_sound_enabled.fetch_xor(true, Ordering::SeqCst);
         !prev
+    }
+
+    pub fn get_output_mode(&self) -> HapticOutputMode {
+        HapticOutputMode::from_u8(self.output_mode.load(Ordering::Relaxed))
+    }
+
+    pub fn set_output_mode(&self, mode: HapticOutputMode) {
+        self.output_mode.store(mode as u8, Ordering::SeqCst);
     }
 
     pub fn get_sound_profile(&self) -> SoundProfile {

@@ -1,3 +1,5 @@
+use crate::config::HapticOutputMode;
+use crate::sound::play_haptic_audio_tick;
 use objc::runtime::Object;
 use objc::{class, msg_send, sel, sel_impl};
 use std::ffi::{c_void, CString};
@@ -32,14 +34,6 @@ pub enum HapticPattern {
 }
 
 impl HapticPattern {
-    pub fn name(&self) -> &'static str {
-        match self {
-            HapticPattern::Generic => "Generic (Light)",
-            HapticPattern::Alignment => "Alignment (Medium)",
-            HapticPattern::LevelChange => "Level Change (Firm)",
-        }
-    }
-
     pub fn actuator_id(&self) -> i32 {
         match self {
             HapticPattern::Generic => 1,     // Light / subtle tick
@@ -75,7 +69,6 @@ fn get_or_init_engine() -> bool {
         .unwrap();
         let handle = dlopen(path.as_ptr(), 1);
         if handle.is_null() {
-            eprintln!("[Haptic] Warning: MultitouchSupport framework not found, using AppKit fallback.");
             return false;
         }
 
@@ -94,7 +87,6 @@ fn get_or_init_engine() -> bool {
         let actuate_ptr = dlsym(handle, actuate_sym.as_ptr());
 
         if get_device_id_ptr.is_null() || create_actuator_ptr.is_null() || open_actuator_ptr.is_null() || actuate_ptr.is_null() {
-            eprintln!("[Haptic] Multitouch actuator functions not found.");
             return false;
         }
 
@@ -165,37 +157,44 @@ fn get_or_init_engine() -> bool {
     }
 }
 
-/// Triggers global haptic feedback across background and foreground apps
-pub fn perform_haptic(pattern: HapticPattern) {
-    // 1. Try global MultitouchSupport actuator (works across all apps in background!)
-    if get_or_init_engine() {
-        let guard = GLOBAL_ENGINE.lock().unwrap();
-        if let Some(engine) = guard.as_ref() {
-            if let Some(actuate) = engine.actuate_fn {
-                let act_id = pattern.actuator_id();
-                let mut actuated = false;
-                for &actuator in &engine.actuators {
-                    unsafe {
-                        if actuate(actuator, act_id, 0) == 0 {
-                            actuated = true;
+/// Triggers haptic feedback based on output mode (Trackpad / Speaker / Both)
+pub fn perform_haptic(pattern: HapticPattern, mode: HapticOutputMode) {
+    // 1. Speaker audio tick simulation (if SpeakerOnly or Both)
+    if mode == HapticOutputMode::SpeakerOnly || mode == HapticOutputMode::Both {
+        play_haptic_audio_tick(pattern);
+    }
+
+    // 2. Physical Trackpad actuation (if TrackpadOnly or Both)
+    if mode == HapticOutputMode::TrackpadOnly || mode == HapticOutputMode::Both {
+        if get_or_init_engine() {
+            let guard = GLOBAL_ENGINE.lock().unwrap();
+            if let Some(engine) = guard.as_ref() {
+                if let Some(actuate) = engine.actuate_fn {
+                    let act_id = pattern.actuator_id();
+                    let mut actuated = false;
+                    for &actuator in &engine.actuators {
+                        unsafe {
+                            if actuate(actuator, act_id, 0) == 0 {
+                                actuated = true;
+                            }
                         }
                     }
-                }
-                if actuated {
-                    return;
+                    if actuated {
+                        return;
+                    }
                 }
             }
         }
-    }
 
-    // 2. Fallback to AppKit NSHapticFeedbackManager
-    unsafe {
-        let cls = class!(NSHapticFeedbackManager);
-        let performer: Id = msg_send![cls, defaultPerformer];
-        if performer != NIL {
-            let pattern_val: isize = pattern as isize;
-            let time_val: usize = 1; // NSHapticFeedbackPerformanceTimeNow = 1
-            let () = msg_send![performer, performFeedbackPattern:pattern_val performanceTime:time_val];
+        // Fallback to AppKit NSHapticFeedbackManager
+        unsafe {
+            let cls = class!(NSHapticFeedbackManager);
+            let performer: Id = msg_send![cls, defaultPerformer];
+            if performer != NIL {
+                let pattern_val: isize = pattern as isize;
+                let time_val: usize = 1;
+                let () = msg_send![performer, performFeedbackPattern:pattern_val performanceTime:time_val];
+            }
         }
     }
 }

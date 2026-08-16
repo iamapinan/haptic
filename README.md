@@ -8,13 +8,17 @@
 
 ## ทำไมถึงทำตัวนี้?
 
-เวลาใช้ MacBook หรือ Magic Trackpad เรามักจะ scroll หน้ายาวๆ แบบลื่นไหล แต่บางทีก็คิดถึงความรู้สึกตอนหมุน scroll wheel กึกๆ บนเมาส์จริง หรือคิดถึงเสียงพิมพ์คีย์บอร์ด mechanical แบบ thocky แน่นๆ แอปตัวนี้จะยิงสัญญาณตรงไปที่ Taptic Engine ของ Trackpad และจำลองเสียง mechanical switch ให้ทุกการขยับและพิมพ์สนุกขึ้น
+เวลาใช้ MacBook หรือ Magic Trackpad เรามักจะ scroll หน้ายาวๆ แบบลื่นไหล แต่บางทีก็คิดถึงความรู้สึกตอนหมุน scroll wheel กึกๆ บนเมาส์จริง หรือคิดถึงเสียงพิมพ์คีย์บอร์ด mechanical แบบ thocky แน่นๆ หรือเวลาใช้เมาส์ธรรมดากับ Mac mini / Mac Studio แล้วอยากได้เสียงจำลอง click/tick เหมือนล้อหมุนจริง แอปตัวนี้รวมฟังก์ชันเหล่านี้ไว้ให้ครบในที่เดียว
 
 ## ความสามารถ
 
 - **Mouse Movement Haptic** — สั่นเบาๆ ตามระยะทางที่เมาส์เคลื่อนที่
 - **Scroll Wheel Haptic** — สั่นเป็นจังหวะตามความเร็วและระยะการ scroll
 - **Multi-Touch Gestures** — สั่นตอบสนองเวลา Pinch-to-zoom (ซูมภาพ), หมุน 2 นิ้ว (Rotate) หรือปัดหน้าจอ (Swipe)
+- **Haptic Output Mode (เลือกโหมดส่งสัญญาณสัมผัส)**:
+  - **Trackpad Vibration Only (Default)**: สั่น Taptic Engine ของ Trackpad
+  - **Speaker Audio Tick**: จำลองเสียงติ๊กเบาๆ สไตล์ Apple Watch / Digital Crown ผ่านลำโพงแทน (เหมาะมากเวลาใช้เมาส์ธรรมดาหรือไม่มี Trackpad)
+  - **Both (Trackpad + Speaker)**: ทั้งสั่นและมีเสียงติ๊กเบาๆ ควบคู่กัน
 - **Mechanical Keyboard Sounds** — มีเสียงคลิกแป้นพิมพ์ mechanical ขณะพิมพ์แบบ low-latency (<2ms):
   - **Cream / Holy Panda (Thocky)**: เสียงลึก ทุ้ม นุ่ม แน่น
   - **Blue Switch (Crisp Click)**: เสียงกริ๊กใส คม ชัดเจน
@@ -56,7 +60,7 @@ cargo run --release
 ## Requirements
 
 - macOS 11.0 ขึ้นไป
-- MacBook ที่มี Force Touch Trackpad หรือใช้งานร่วมกับ Apple Magic Trackpad
+- ใช้งานได้กับทั้ง MacBook Force Touch Trackpad, Apple Magic Trackpad หรือเมาส์ทั่วไป (ผ่านโหมด Speaker Audio Tick)
 
 ## License
 
