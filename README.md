@@ -1,61 +1,57 @@
-# ⚡️ Haptic Touch & Scroll for macOS (Rust)
+# Haptic for macOS
 
-แอปพลิเคชันขนาดเล็กและเบามาก (~340 KB) สำหรับ macOS ที่พัฒนาด้วยภาษา **Rust** เพื่อจำลองการส่ง **Haptic Feedback (Taptic Engine / Force Touch)** บน MacBook Trackpad หรือ Magic Trackpad เมื่อคุณ:
-1. **เลื่อนเมาส์ (Mouse Movement)** — รู้สึกถึงแรงสั่น/คลิกเบาๆ เมื่อเคอร์เซอร์เคลื่อนที่ผ่านระยะที่กำหนด
-2. **เลื่อนหน้าจอ (Scroll Wheel)** — รู้สึกถึงแรงต้าน/จังหวะกึกๆ (Tactile Notches) เหมือนกำลังหมุนล้อเมาส์จริง
+เพิ่มสัมผัส Haptic feedback (แรงสั่น/คลิกเบาๆ) ให้กับ Trackpad บน Mac เวลาเลื่อนเมาส์หรือ scroll หน้าจอ 
 
----
-
-## ✨ ฟีเจอร์หลัก (Features)
-
-- **⚡️ Native Menu Bar Item (Status Bar)**: ไอคอน `⚡️` บนแถบเมนูด้านบนขวา ไม่เกะกะ Dock
-- **🎯 Force Touch Haptic**: ใช้งาน Apple AppKit `NSHapticFeedbackManager` แบบ Real-time
-- **🕹 แยกการเปิด/ปิดได้อิสระ**:
-  - เปิด/ปิด Haptics ทั้งหมด (`Enable Haptics`)
-  - เปิด/ปิด เฉพาะ Mouse Movement (`Mouse Movement Haptic`)
-  - เปิด/ปิด เฉพาะ Scroll Wheel (`Scroll Wheel Haptic`)
-- **🎚 เลือกระดับความแรงของการสั่น (Haptic Patterns)**:
-  - `Generic (Light)` — สั่นคลิกเบาๆ นุ่มมือ
-  - `Alignment (Medium)` — สั่นกึกปานกลาง (Snap notch)
-  - `Level Change (Firm)` — สั่นหนักแน่น ชัดเจน
-- **⚙️ ปรับระดับความไว (Sensitivity)**:
-  - **Mouse Sensitivity**: High (25px), Medium (50px), Low (100px)
-  - **Scroll Sensitivity**: High (Sensitive), Medium (Normal), Low (Coarse)
-- **🧪 ปุ่มทดสอบ Haptic**: ทดสอบคลิกแรงสั่นได้ทันทีจากเมนู
-- **🔒 Accessibility Helper**: ตรวจสอบและนำทางไปเปิดสิทธิ์ Accessibility ใน macOS System Settings ได้ด้วยคลิกเดียว
+เขียนด้วย **Rust** แบบ lightweight ทำงานเงียบๆ อยู่บน Menu Bar ไม่กินแรม ไม่หน่วงเครื่อง
 
 ---
 
-## 🚀 วิธีเปิดใช้งาน (Getting Started)
+## ทำไมถึงทำตัวนี้?
 
-### วิธีที่ 1: รันผ่าน Cargo
+เวลาใช้ Trackpad บน MacBook หรือ Magic Trackpad เรามักจะ scroll หน้ายาวๆ แบบลื่นไหล แต่บางทีก็คิดถึงความรู้สึกตอนหมุน scroll wheel กึกๆ บนเมาส์จริง หรืออยากได้สัมผัส tactile เวลาเคอร์เซอร์ขยับผ่านระยะต่างๆ แอปตัวนี้จะยิงสัญญาณตรงไปที่ Taptic Engine ของ Trackpad เพื่อจำลองจังหวะนั้นขึ้นมา
+
+## ความสามารถ
+
+- **Mouse Movement Haptic** — สั่นเบาๆ ตามระยะทางที่เมาส์เคลื่อนที่
+- **Scroll Wheel Haptic** — สั่นเป็นจังหวะตามความเร็วและระยะการ scroll
+- **Menu Bar Controls** — เปิด/ปิด แยกแต่ละฟังก์ชันได้อิสระจากเมนูด้านบนขวา
+- **ปรับแรงสั่นได้ 3 ระดับ**: Light (สั่นเบา), Medium (ปานกลาง), Firm (หนักแน่น)
+- **ปรับความไว (Sensitivity)**: เลือกระยะ threshold ได้ว่าอยากให้สั่นถี่หรือห่างแค่ไหน
+- **รองรับทั้งระบบ** — ทำงานได้กับทุกแอป ไม่ว่าจะอยู่หน้าต่างไหน
+
+## วิธีติดตั้งและใช้งาน
+
+1. โหลดไฟล์ `Haptic.dmg` จากหน้า [Releases](https://github.com/iamapinan/haptic/releases)
+2. ลาก `Haptic.app` เข้าโฟลเดอร์ Applications
+3. เปิดแอป จะมีไอคอนสายฟ้า `⚡️` ขึ้นที่ Menu Bar ด้านบนขวา
+
+> **หมายเหตุสำหรับการเปิดครั้งแรก**:  
+> macOS จะขอสิทธิ์ **Accessibility (การช่วยการเข้าถึง)** เพื่อให้แอปดักจับตำแหน่งเมาส์และการ scroll ได้ ให้เข้าไปติ๊กเปิดอนุญาตที่:  
+> `System Settings` ➜ `Privacy & Security` ➜ `Accessibility` ➜ เปิดสวิตช์ให้ **Haptic**
+
+---
+
+## Build เองจาก Source Code
+
+ถ้าอยากคอมไพล์เอง ต้องลง Rust ไว้ในเครื่องก่อน:
+
 ```bash
+git clone git@github.com:iamapinan/haptic.git
+cd haptic
+
+# รันตรงๆ
 cargo run --release
-```
 
-### วิธีที่ 2: รันผ่าน macOS `.app` Bundle
-สร้างและเปิดแอป:
-```bash
+# หรือจะแพ็กเป็น .app / .dmg
 ./bundle.sh
-open Haptic.app
+./create_dmg.sh
 ```
 
----
+## Requirements
 
-## 🔐 การตั้งค่าสิทธิ์ Accessibility (จำเป็นสำหรับ macOS)
+- macOS 11.0 ขึ้นไป
+- MacBook ที่มี Force Touch Trackpad หรือใช้งานร่วมกับ Apple Magic Trackpad
 
-เนื่องจากแอปต้องตรวจจับการเลื่อนเมาส์และการ Scroll จากทุกหน้าต่าง (Global Event Tap) บน macOS:
-1. เมื่อเปิดแอปครั้งแรก macOS จะแสดงหน้าต่างแจ้งเตือนขอสิทธิ์ Accessibility
-2. ไปที่ **System Settings (การตั้งค่าระบบ) ➜ Privacy & Security (ความเป็นส่วนตัวและความปลอดภัย) ➜ Accessibility (การช่วยการเข้าถึง)**
-3. เปิดสวิตช์อนุญาตให้กับ `Haptic` หรือ Terminal / Cargo binary
+## License
 
----
-
-## 🛠 โครงสร้างโปรเจกต์ (Architecture)
-
-- [`src/main.rs`](file:///Users/apinan/Developments/haptic/src/main.rs) — Entry point, เริ่มต้น NSApplication แบบ Accessory (Menu bar only)
-- [`src/haptic.rs`](file:///Users/apinan/Developments/haptic/src/haptic.rs) — Objective-C Binding กับ `NSHapticFeedbackManager`
-- [`src/event_tap.rs`](file:///Users/apinan/Developments/haptic/src/event_tap.rs) — Background Thread ดักจับ Mouse & Scroll Events พร้อมระบบ Distance Accumulator & Throttling
-- [`src/config.rs`](file:///Users/apinan/Developments/haptic/src/config.rs) — Thread-safe Atomic Configuration
-- [`src/menu.rs`](file:///Users/apinan/Developments/haptic/src/menu.rs) — Native NSStatusItem & NSMenu Handler
-- [`Info.plist`](file:///Users/apinan/Developments/haptic/Info.plist) & [`bundle.sh`](file:///Users/apinan/Developments/haptic/bundle.sh) — สคริปต์แพ็กเกจเป็น `.app`
+MIT License
