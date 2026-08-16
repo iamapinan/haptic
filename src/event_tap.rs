@@ -272,7 +272,7 @@ unsafe extern "C" fn cg_keyboard_callback(
 
     if event_type == 10 { // 10 = kCGEventKeyDown
         let config = &*(user_data as *const AppConfig);
-        let key_code = CGEventGetIntegerValueField(event, 70) as u16;
+        let key_code = CGEventGetIntegerValueField(event, 9) as u16; // 9 = kCGKeyboardEventKeycode
         trigger_keyboard_sound(key_code, config);
     }
 

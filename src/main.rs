@@ -24,10 +24,11 @@ fn main() {
         // Set activation policy to Accessory = 1 (runs in background without Dock icon, only menu bar)
         let () = msg_send![app, setActivationPolicy: 1isize];
 
-        // 2. Initialize App Configuration
+        // 2. Initialize App Configuration & Sound Engine
         let config = AppConfig::new();
+        sound::init_sound_engine(config.get_sound_volume());
 
-        // 3. Start Global Event Tap (Mouse move & Scroll wheel)
+        // 3. Start Global Event Tap (Mouse move, Scroll wheel, Gestures & Hardware Keyboard)
         if let Err(e) = start_event_tap(Arc::clone(&config)) {
             eprintln!("[Haptic] Warning: {}", e);
         }
