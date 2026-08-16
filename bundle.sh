@@ -26,6 +26,6 @@ cp Info.plist "$CONTENTS_DIR/Info.plist"
 cp AppIcon.icns "$RESOURCES_DIR/AppIcon.icns"
 
 echo "🔏 Code signing $APP_NAME..."
-codesign --force --deep --sign - "$APP_NAME"
+codesign --force --deep --sign - --identifier "com.apinan.haptic-mac" "$APP_NAME"
 
 echo "✅ Created $APP_NAME successfully!"

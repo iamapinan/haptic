@@ -201,6 +201,12 @@ fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
                 }
             }
         }
+
+        // 6. Global KeyDown (10)
+        if event_type == 10 {
+            let key_code: u16 = msg_send![event, keyCode];
+            trigger_keyboard_sound(key_code, &state.config);
+        }
     }
 }
 
@@ -343,6 +349,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
         let mask: u64 = (1 << 5)
             | (1 << 6)
             | (1 << 7)
+            | (1 << 10) // KeyDown
             | (1 << 27)
             | (1 << 22)
             | (1 << 18)

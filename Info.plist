@@ -28,5 +28,7 @@
     <true/>
     <key>NSAppleEventsUsageDescription</key>
     <string>Haptic requires Accessibility access to provide tactile trackpad feedback and mechanical keyboard sounds when you type.</string>
+    <key>NSInputMonitoringUsageDescription</key>
+    <string>Haptic requires Input Monitoring access to provide mechanical keyboard switch sounds when you type.</string>
 </dict>
 </plist>
