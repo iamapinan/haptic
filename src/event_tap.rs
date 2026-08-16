@@ -86,7 +86,6 @@ struct MonitorState {
 static MONITOR_REF: AtomicUsize = AtomicUsize::new(0);
 static LOCAL_MONITOR_REF: AtomicUsize = AtomicUsize::new(0);
 static KEYBOARD_TAP_REF: AtomicUsize = AtomicUsize::new(0);
-static LAST_KEY_TIME: AtomicUsize = AtomicUsize::new(0);
 
 fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
     unsafe {
@@ -201,31 +200,35 @@ fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
                 }
             }
         }
-
-        // 6. Global KeyDown (10)
-        if event_type == 10 {
-            let key_code: u16 = msg_send![event, keyCode];
-            trigger_keyboard_sound(key_code, &state.config);
-        }
     }
 }
+
+static LAST_KEY_TIME: AtomicUsize = AtomicUsize::new(0);
+static LAST_KEY_CODE: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(0);
 
 fn trigger_keyboard_sound(key_code: u16, config: &AppConfig) {
     if !config.is_enabled() || !config.is_keyboard_sound_enabled() {
         return;
     }
 
-    // Debounce duplicate events within 5ms (e.g. if both IOHID and CGEventTap trigger)
     let now_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as usize;
 
-    let last = LAST_KEY_TIME.load(Ordering::Relaxed);
-    if now_ms.saturating_sub(last) < 5 {
+    let last_time = LAST_KEY_TIME.load(Ordering::Relaxed);
+    let last_code = LAST_KEY_CODE.load(Ordering::Relaxed);
+
+    // Prevent double sound / echo on a single key press:
+    // Discard same key code within 60ms or any key within 30ms
+    if (key_code == last_code && now_ms.saturating_sub(last_time) < 60)
+        || now_ms.saturating_sub(last_time) < 30
+    {
         return;
     }
+
     LAST_KEY_TIME.store(now_ms, Ordering::Relaxed);
+    LAST_KEY_CODE.store(key_code, Ordering::Relaxed);
 
     let profile = config.get_sound_profile();
     let vol = config.get_sound_volume();
@@ -287,18 +290,16 @@ unsafe extern "C" fn cg_keyboard_callback(
 
 /// Sets up system-wide NSEvent monitors for gestures/mouse + IOHIDManager & CGEventTap for keyboard
 pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
-    println!("[EventTap] Step 3.1: check accessibility");
     if !is_accessibility_trusted(false) {
-        println!("[Haptic] Note: Accessibility permission not yet active.");
+        println!("[Haptic] Requesting Accessibility permission for Haptic.app...");
+        let _ = is_accessibility_trusted(true);
     }
 
     let raw_config = Arc::into_raw(Arc::clone(&config)) as *mut c_void;
 
     unsafe {
-        println!("[EventTap] Step 3.2: get main run loop");
         let main_run_loop = CFRunLoopGetMain();
 
-        println!("[EventTap] Step 3.3: setup IOHIDManager");
         let hid_mgr = IOHIDManagerCreate(std::ptr::null_mut(), 0);
         if !hid_mgr.is_null() {
             IOHIDManagerSetDeviceMatchingMultiple(hid_mgr, std::ptr::null_mut());
@@ -312,7 +313,6 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
             println!("[Haptic] IOHIDManager scheduled on Main RunLoop (result: {}).", open_res);
         }
 
-        println!("[EventTap] Step 3.4: setup CGEventTap");
         let tap = CGEventTapCreate(
             1, // kCGSessionEventTap
             0, // kCGHeadInsertEventTap
@@ -334,8 +334,6 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
             println!("[Haptic] CGEventTap scheduled on Main RunLoop.");
         }
 
-        println!("[EventTap] Step 3.5: setup NSEvent monitors");
-
         // 3. NSEvent Monitors for Mouse and Multi-Touch Gestures
         let state = Arc::new(Mutex::new(MonitorState {
             config,
@@ -349,7 +347,6 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
         let mask: u64 = (1 << 5)
             | (1 << 6)
             | (1 << 7)
-            | (1 << 10) // KeyDown
             | (1 << 27)
             | (1 << 22)
             | (1 << 18)
