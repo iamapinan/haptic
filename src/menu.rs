@@ -25,6 +25,7 @@ const TAG_STATUS_HEADER: isize = 100;
 const TAG_ENABLE_ALL: isize = 101;
 const TAG_ENABLE_MOUSE: isize = 102;
 const TAG_ENABLE_SCROLL: isize = 103;
+const TAG_ENABLE_GESTURES: isize = 104;
 
 const TAG_PAT_GENERIC: isize = 201;
 const TAG_PAT_ALIGNMENT: isize = 202;
@@ -68,6 +69,7 @@ pub fn update_menu_state() {
         let enabled = config.is_enabled();
         let mouse_enabled = config.is_mouse_move_enabled();
         let scroll_enabled = config.is_scroll_enabled();
+        let gestures_enabled = config.is_gestures_enabled();
         let pattern = config.get_pattern();
         let mouse_sens = config.get_mouse_sensitivity();
         let scroll_sens = config.get_scroll_sensitivity();
@@ -114,6 +116,7 @@ pub fn update_menu_state() {
         set_item_state(menu, TAG_ENABLE_ALL, enabled);
         set_item_state(menu, TAG_ENABLE_MOUSE, mouse_enabled);
         set_item_state(menu, TAG_ENABLE_SCROLL, scroll_enabled);
+        set_item_state(menu, TAG_ENABLE_GESTURES, gestures_enabled);
 
         // Update Pattern submenu
         set_item_state(pattern_menu, TAG_PAT_GENERIC, pattern == HapticPattern::Generic);
@@ -162,6 +165,18 @@ extern "C" fn on_toggle_scroll(_this: &Object, _cmd: Sel, _sender: Id) {
         let config = get_config();
         let new_val = config.toggle_scroll();
         println!("[Haptic] Scroll feedback toggled: {}", new_val);
+        if new_val {
+            perform_haptic(config.get_pattern());
+        }
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_toggle_gestures(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        let new_val = config.toggle_gestures();
+        println!("[Haptic] Multi-Touch Gestures feedback toggled: {}", new_val);
         if new_val {
             perform_haptic(config.get_pattern());
         }
@@ -312,6 +327,10 @@ fn register_action_handler_class() -> &'static Class {
                 sel!(toggleScroll:),
                 on_toggle_scroll as extern "C" fn(&Object, Sel, Id),
             );
+            decl.add_method(
+                sel!(toggleGestures:),
+                on_toggle_gestures as extern "C" fn(&Object, Sel, Id),
+            );
 
             decl.add_method(
                 sel!(setPatternGeneric:),
@@ -454,6 +473,13 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
             TAG_ENABLE_SCROLL,
             "s",
         );
+        add_item(
+            menu,
+            "Multi-Touch Gestures (Pinch / Rotate)",
+            Some(sel!(toggleGestures:)),
+            TAG_ENABLE_GESTURES,
+            "g",
+        );
 
         add_separator(menu);
 
@@ -494,21 +520,21 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
 
         add_item(
             mouse_sens_menu,
-            "High (25 px)",
+            "High (Sensitive)",
             Some(sel!(setMouseSensHigh:)),
             TAG_MOUSE_HIGH,
             "",
         );
         add_item(
             mouse_sens_menu,
-            "Medium (50 px)",
+            "Medium (Normal)",
             Some(sel!(setMouseSensMed:)),
             TAG_MOUSE_MED,
             "",
         );
         add_item(
             mouse_sens_menu,
-            "Low (100 px)",
+            "Low (Coarse)",
             Some(sel!(setMouseSensLow:)),
             TAG_MOUSE_LOW,
             "",

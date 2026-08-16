@@ -26,6 +26,22 @@ impl Sensitivity {
         }
     }
 
+    pub fn pinch_threshold(&self) -> f64 {
+        match self {
+            Sensitivity::High => 0.025,
+            Sensitivity::Medium => 0.05,
+            Sensitivity::Low => 0.10,
+        }
+    }
+
+    pub fn rotate_threshold_deg(&self) -> f32 {
+        match self {
+            Sensitivity::High => 10.0,
+            Sensitivity::Medium => 20.0,
+            Sensitivity::Low => 35.0,
+        }
+    }
+
     pub fn from_u8(val: u8) -> Self {
         match val {
             0 => Sensitivity::High,
@@ -42,20 +58,13 @@ impl Sensitivity {
             Sensitivity::Low => 2,
         }
     }
-
-    pub fn name(&self) -> &'static str {
-        match self {
-            Sensitivity::High => "High",
-            Sensitivity::Medium => "Medium",
-            Sensitivity::Low => "Low",
-        }
-    }
 }
 
 pub struct AppConfig {
     pub enabled: AtomicBool,
     pub mouse_move_enabled: AtomicBool,
     pub scroll_enabled: AtomicBool,
+    pub gestures_enabled: AtomicBool,
     pub pattern: AtomicU8,             // 0 = Generic, 1 = Alignment, 2 = LevelChange
     pub mouse_sensitivity: AtomicU8,   // 0 = High, 1 = Medium, 2 = Low
     pub scroll_sensitivity: AtomicU8,  // 0 = High, 1 = Medium, 2 = Low
@@ -68,10 +77,11 @@ impl AppConfig {
             enabled: AtomicBool::new(true),
             mouse_move_enabled: AtomicBool::new(true),
             scroll_enabled: AtomicBool::new(true),
+            gestures_enabled: AtomicBool::new(true),
             pattern: AtomicU8::new(0), // Generic
-            mouse_sensitivity: AtomicU8::new(1), // Medium (50px)
-            scroll_sensitivity: AtomicU8::new(1), // Medium (18 units)
-            min_interval_ms: AtomicU64::new(30), // 30ms limit
+            mouse_sensitivity: AtomicU8::new(1), // Medium
+            scroll_sensitivity: AtomicU8::new(1), // Medium
+            min_interval_ms: AtomicU64::new(25), // 25ms limit
         })
     }
 
@@ -99,6 +109,15 @@ impl AppConfig {
 
     pub fn toggle_scroll(&self) -> bool {
         let prev = self.scroll_enabled.fetch_xor(true, Ordering::SeqCst);
+        !prev
+    }
+
+    pub fn is_gestures_enabled(&self) -> bool {
+        self.gestures_enabled.load(Ordering::Relaxed)
+    }
+
+    pub fn toggle_gestures(&self) -> bool {
+        let prev = self.gestures_enabled.fetch_xor(true, Ordering::SeqCst);
         !prev
     }
 

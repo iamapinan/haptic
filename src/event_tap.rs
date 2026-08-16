@@ -32,6 +32,8 @@ struct MonitorState {
     config: Arc<AppConfig>,
     accumulated_mouse_dist: f64,
     accumulated_scroll: f64,
+    accumulated_pinch: f64,
+    accumulated_rotate: f32,
     last_haptic_time: Instant,
 }
 
@@ -106,6 +108,50 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
                 }
             }
         }
+
+        // 3. Multi-Touch Pinch to Zoom (Magnify = 30)
+        if event_type == 30 {
+            if state.config.is_gestures_enabled() {
+                let mag: f64 = msg_send![event, magnification];
+                state.accumulated_pinch += mag.abs();
+                let threshold = state.config.get_mouse_sensitivity().pinch_threshold();
+
+                if state.accumulated_pinch >= threshold {
+                    if now.duration_since(state.last_haptic_time) >= min_interval {
+                        perform_haptic(pattern);
+                        state.last_haptic_time = now;
+                    }
+                    state.accumulated_pinch = 0.0;
+                }
+            }
+        }
+
+        // 4. Multi-Touch Rotate (18)
+        if event_type == 18 {
+            if state.config.is_gestures_enabled() {
+                let rot: f32 = msg_send![event, rotation];
+                state.accumulated_rotate += rot.abs();
+                let threshold = state.config.get_mouse_sensitivity().rotate_threshold_deg();
+
+                if state.accumulated_rotate >= threshold {
+                    if now.duration_since(state.last_haptic_time) >= min_interval {
+                        perform_haptic(pattern);
+                        state.last_haptic_time = now;
+                    }
+                    state.accumulated_rotate = 0.0;
+                }
+            }
+        }
+
+        // 5. Multi-Touch Swipe (31)
+        if event_type == 31 {
+            if state.config.is_gestures_enabled() {
+                if now.duration_since(state.last_haptic_time) >= min_interval {
+                    perform_haptic(pattern);
+                    state.last_haptic_time = now;
+                }
+            }
+        }
     }
 }
 
@@ -119,12 +165,23 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
         config,
         accumulated_mouse_dist: 0.0,
         accumulated_scroll: 0.0,
+        accumulated_pinch: 0.0,
+        accumulated_rotate: 0.0,
         last_haptic_time: Instant::now(),
     }));
 
     unsafe {
-        // Mask: MouseMoved (1 << 5), LeftMouseDragged (1 << 6), RightMouseDragged (1 << 7), OtherMouseDragged (1 << 27), ScrollWheel (1 << 22)
-        let mask: u64 = (1 << 5) | (1 << 6) | (1 << 7) | (1 << 27) | (1 << 22);
+        // Mask:
+        // MouseMoved (1 << 5), LeftMouseDragged (1 << 6), RightMouseDragged (1 << 7), OtherMouseDragged (1 << 27),
+        // ScrollWheel (1 << 22), Rotate (1 << 18), Magnify/Pinch (1 << 30), Swipe (1 << 31)
+        let mask: u64 = (1 << 5)
+            | (1 << 6)
+            | (1 << 7)
+            | (1 << 27)
+            | (1 << 22)
+            | (1 << 18)
+            | (1 << 30)
+            | (1 << 31);
 
         // 1. Global Monitor (catches events when ANY other app is active in foreground)
         let state_global = Arc::clone(&state);
@@ -142,7 +199,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
         if global_monitor != NIL {
             let () = msg_send![global_monitor, retain];
             MONITOR_REF.store(global_monitor as usize, Ordering::Relaxed);
-            println!("[Haptic] Global NSEvent monitor active (system-wide background tracking enabled).");
+            println!("[Haptic] Global Multi-Touch & Mouse monitor active.");
         } else {
             eprintln!("[Haptic] Warning: Failed to add global NSEvent monitor.");
         }
@@ -164,7 +221,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
         if local_monitor != NIL {
             let () = msg_send![local_monitor, retain];
             LOCAL_MONITOR_REF.store(local_monitor as usize, Ordering::Relaxed);
-            println!("[Haptic] Local NSEvent monitor active.");
+            println!("[Haptic] Local Multi-Touch monitor active.");
         }
     }
 
