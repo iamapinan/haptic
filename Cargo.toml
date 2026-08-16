@@ -8,6 +8,7 @@ objc = "0.2"
 block = "0.1.6"
 core-graphics = "0.24"
 core-foundation = "0.10"
+rodio = "0.19"
 
 [profile.release]
 opt-level = 3
