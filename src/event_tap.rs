@@ -211,7 +211,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
             let mask: u64 = (1 << 5) | (1 << 22);
 
             let tap = CGEventTapCreate(
-                1, // kCGSessionEventTap
+                0, // kCGHIDEventTap (Global system-wide across all apps)
                 0, // kCGHeadInsertEventTap
                 1, // kCGEventTapOptionListenOnly (no event blocking)
                 mask,
