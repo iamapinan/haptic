@@ -281,17 +281,18 @@ unsafe extern "C" fn cg_keyboard_callback(
 
 /// Sets up system-wide NSEvent monitors for gestures/mouse + IOHIDManager & CGEventTap for keyboard
 pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
-    // 100% silent check on startup - never pop up dialog automatically
+    println!("[EventTap] Step 3.1: check accessibility");
     if !is_accessibility_trusted(false) {
-        println!("[Haptic] Note: Accessibility permission not yet active. (Can be checked via menu)");
+        println!("[Haptic] Note: Accessibility permission not yet active.");
     }
 
     let raw_config = Arc::into_raw(Arc::clone(&config)) as *mut c_void;
 
     unsafe {
+        println!("[EventTap] Step 3.2: get main run loop");
         let main_run_loop = CFRunLoopGetMain();
 
-        // 1. Setup IOHIDManager directly on Main Run Loop (CommonModes + DefaultMode)
+        println!("[EventTap] Step 3.3: setup IOHIDManager");
         let hid_mgr = IOHIDManagerCreate(std::ptr::null_mut(), 0);
         if !hid_mgr.is_null() {
             IOHIDManagerSetDeviceMatchingMultiple(hid_mgr, std::ptr::null_mut());
@@ -301,16 +302,11 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
                 main_run_loop as _,
                 kCFRunLoopCommonModes as _,
             );
-            IOHIDManagerScheduleWithRunLoop(
-                hid_mgr,
-                main_run_loop as _,
-                kCFRunLoopDefaultMode as _,
-            );
             let open_res = IOHIDManagerOpen(hid_mgr, 0);
             println!("[Haptic] IOHIDManager scheduled on Main RunLoop (result: {}).", open_res);
         }
 
-        // 2. Setup CGEventTap fallback directly on Main Run Loop
+        println!("[EventTap] Step 3.4: setup CGEventTap");
         let tap = CGEventTapCreate(
             1, // kCGSessionEventTap
             0, // kCGHeadInsertEventTap
@@ -328,10 +324,11 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
                 0,
             );
             CFRunLoopAddSource(main_run_loop, loop_source, kCFRunLoopCommonModes);
-            CFRunLoopAddSource(main_run_loop, loop_source, kCFRunLoopDefaultMode);
             CGEventTapEnable(tap, true);
             println!("[Haptic] CGEventTap scheduled on Main RunLoop.");
         }
+
+        println!("[EventTap] Step 3.5: setup NSEvent monitors");
 
         // 3. NSEvent Monitors for Mouse and Multi-Touch Gestures
         let state = Arc::new(Mutex::new(MonitorState {
