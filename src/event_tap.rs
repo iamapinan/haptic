@@ -85,6 +85,7 @@ pub fn is_accessibility_trusted(prompt: bool) -> bool {
 // Struct to store accumulated tracking state in user_data
 struct TapState {
     config: Arc<AppConfig>,
+    tap_port: CFMachPortRef,
     last_mouse_x: f64,
     last_mouse_y: f64,
     mouse_has_prev: bool,
@@ -95,24 +96,24 @@ struct TapState {
 
 // Event tap callback
 unsafe extern "C" fn event_tap_callback(
-    proxy: CGEventTapProxy,
+    _proxy: CGEventTapProxy,
     event_type: u32,
     event: CGEventRef,
     user_info: *mut c_void,
 ) -> CGEventRef {
-    // Handle tap disabled by system timeout - re-enable it
-    if event_type == 0xFFFFFFFE || event_type == 0xFFFFFFFF {
-        if !proxy.is_null() {
-            CGEventTapEnable(proxy as CFMachPortRef, true);
-        }
-        return event;
-    }
-
     if user_info.is_null() || event.is_null() {
         return event;
     }
 
     let state = &mut *(user_info as *mut TapState);
+
+    // Handle tap disabled by system timeout or user input - re-enable using actual CFMachPortRef
+    if event_type == 0xFFFFFFFE || event_type == 0xFFFFFFFF {
+        if !state.tap_port.is_null() {
+            CGEventTapEnable(state.tap_port, true);
+        }
+        return event;
+    }
 
     // If global haptic is disabled, do nothing
     if !state.config.is_enabled() {
@@ -197,6 +198,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
         .spawn(move || unsafe {
             let state = Box::into_raw(Box::new(TapState {
                 config,
+                tap_port: std::ptr::null_mut(),
                 last_mouse_x: 0.0,
                 last_mouse_y: 0.0,
                 mouse_has_prev: false,
@@ -221,6 +223,9 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
                 eprintln!("[Haptic] Failed to create CGEventTap. Please grant Accessibility permissions in System Settings.");
                 return;
             }
+
+            // Save the tap port in state so event_tap_callback can safely re-enable it on timeout
+            (*state).tap_port = tap;
 
             let loop_source = CFMachPortCreateRunLoopSource(
                 kCFAllocatorDefault,
