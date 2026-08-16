@@ -5,10 +5,13 @@ mod menu;
 
 use config::AppConfig;
 use event_tap::start_event_tap;
-use haptic::{Id, NIL};
+use haptic::Id;
 use menu::create_status_bar_menu;
 use objc::{class, msg_send, sel, sel_impl};
 use std::sync::Arc;
+
+#[link(name = "AppKit", kind = "framework")]
+extern "C" {}
 
 fn main() {
     unsafe {
