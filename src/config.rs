@@ -12,17 +12,17 @@ pub enum Sensitivity {
 impl Sensitivity {
     pub fn mouse_threshold_pixels(&self) -> f64 {
         match self {
-            Sensitivity::High => 25.0,
-            Sensitivity::Medium => 50.0,
-            Sensitivity::Low => 100.0,
+            Sensitivity::High => 15.0,
+            Sensitivity::Medium => 30.0,
+            Sensitivity::Low => 60.0,
         }
     }
 
     pub fn scroll_threshold_units(&self) -> f64 {
         match self {
-            Sensitivity::High => 8.0,
-            Sensitivity::Medium => 18.0,
-            Sensitivity::Low => 35.0,
+            Sensitivity::High => 3.0,
+            Sensitivity::Medium => 7.0,
+            Sensitivity::Low => 18.0,
         }
     }
 

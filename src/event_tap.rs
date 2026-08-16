@@ -1,74 +1,20 @@
 use crate::config::AppConfig;
-use crate::haptic::perform_haptic;
+use crate::haptic::{perform_haptic, Id, NIL};
+use block::ConcreteBlock;
 use core_foundation::base::TCFType;
 use core_foundation::boolean::CFBoolean;
 use core_foundation::dictionary::CFDictionary;
 use core_foundation::string::CFString;
-use std::ffi::c_void;
-use std::sync::Arc;
+use objc::{class, msg_send, sel, sel_impl};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Instant;
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug)]
-pub struct CGPoint {
-    pub x: f64,
-    pub y: f64,
-}
-
-pub type CGEventRef = *mut c_void;
-pub type CGEventTapProxy = *mut c_void;
-pub type CFMachPortRef = *mut c_void;
-pub type CFRunLoopRef = *mut c_void;
-pub type CFRunLoopSourceRef = *mut c_void;
-pub type CFAllocatorRef = *mut c_void;
-pub type CFStringRef = *mut c_void;
-
-pub type CGEventTapCallBack = unsafe extern "C" fn(
-    proxy: CGEventTapProxy,
-    event_type: u32,
-    event: CGEventRef,
-    user_info: *mut c_void,
-) -> CGEventRef;
 
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
     fn AXIsProcessTrustedWithOptions(options: core_foundation::dictionary::CFDictionaryRef) -> bool;
 }
 
-#[link(name = "CoreGraphics", kind = "framework")]
-extern "C" {
-    fn CGEventTapCreate(
-        tap: u32,
-        place: u32,
-        options: u32,
-        eventsOfInterest: u64,
-        callback: CGEventTapCallBack,
-        userInfo: *mut c_void,
-    ) -> CFMachPortRef;
-
-    fn CGEventTapEnable(tap: CFMachPortRef, enable: bool);
-    fn CGEventGetLocation(event: CGEventRef) -> CGPoint;
-    fn CGEventGetIntegerValueField(event: CGEventRef, field: u32) -> i64;
-}
-
-#[link(name = "CoreFoundation", kind = "framework")]
-extern "C" {
-    static kCFRunLoopCommonModes: CFStringRef;
-    static kCFAllocatorDefault: CFAllocatorRef;
-
-    fn CFMachPortCreateRunLoopSource(
-        allocator: CFAllocatorRef,
-        port: CFMachPortRef,
-        order: isize,
-    ) -> CFRunLoopSourceRef;
-
-    fn CFRunLoopGetCurrent() -> CFRunLoopRef;
-    fn CFRunLoopAddSource(rl: CFRunLoopRef, source: CFRunLoopSourceRef, mode: CFStringRef);
-    fn CFRunLoopRun();
-}
-
-/// Checks if Accessibility permissions are granted.
-/// If `prompt` is true and permission is not granted, macOS displays a prompt to open System Settings.
 pub fn is_accessibility_trusted(prompt: bool) -> bool {
     unsafe {
         let key = CFString::new("AXTrustedCheckOptionPrompt");
@@ -82,59 +28,41 @@ pub fn is_accessibility_trusted(prompt: bool) -> bool {
     }
 }
 
-// Struct to store accumulated tracking state in user_data
-struct TapState {
+struct MonitorState {
     config: Arc<AppConfig>,
-    tap_port: CFMachPortRef,
-    last_mouse_x: f64,
-    last_mouse_y: f64,
-    mouse_has_prev: bool,
     accumulated_mouse_dist: f64,
     accumulated_scroll: f64,
     last_haptic_time: Instant,
 }
 
-// Event tap callback
-unsafe extern "C" fn event_tap_callback(
-    _proxy: CGEventTapProxy,
-    event_type: u32,
-    event: CGEventRef,
-    user_info: *mut c_void,
-) -> CGEventRef {
-    if user_info.is_null() || event.is_null() {
-        return event;
-    }
+static MONITOR_REF: AtomicUsize = AtomicUsize::new(0);
+static LOCAL_MONITOR_REF: AtomicUsize = AtomicUsize::new(0);
 
-    let state = &mut *(user_info as *mut TapState);
-
-    // Handle tap disabled by system timeout or user input - re-enable using actual CFMachPortRef
-    if event_type == 0xFFFFFFFE || event_type == 0xFFFFFFFF {
-        if !state.tap_port.is_null() {
-            CGEventTapEnable(state.tap_port, true);
+fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
+    unsafe {
+        if event == NIL {
+            return;
         }
-        return event;
-    }
 
-    // If global haptic is disabled, do nothing
-    if !state.config.is_enabled() {
-        return event;
-    }
+        let event_type: usize = msg_send![event, type];
+        let mut state = state_lock.lock().unwrap();
 
-    let now = Instant::now();
-    let min_interval = std::time::Duration::from_millis(state.config.get_min_interval_ms());
-    let pattern = state.config.get_pattern();
+        if !state.config.is_enabled() {
+            return;
+        }
 
-    // 1. Mouse Moved Event (kCGEventMouseMoved = 5)
-    if event_type == 5 {
-        if state.config.is_mouse_move_enabled() {
-            let point = CGEventGetLocation(event);
-            if state.mouse_has_prev {
-                let dx = point.x - state.last_mouse_x;
-                let dy = point.y - state.last_mouse_y;
+        let now = Instant::now();
+        let min_interval = std::time::Duration::from_millis(state.config.get_min_interval_ms());
+        let pattern = state.config.get_pattern();
+
+        // 1. Mouse Moved (5), LeftMouseDragged (6), RightMouseDragged (7), OtherMouseDragged (27)
+        if event_type == 5 || event_type == 6 || event_type == 7 || event_type == 27 {
+            if state.config.is_mouse_move_enabled() {
+                let dx: f64 = msg_send![event, deltaX];
+                let dy: f64 = msg_send![event, deltaY];
                 let dist = (dx * dx + dy * dy).sqrt();
 
-                // Ignore sudden giant leaps (e.g. cursor warp across multi-monitors)
-                if dist < 500.0 {
+                if dist > 0.0 && dist < 300.0 {
                     state.accumulated_mouse_dist += dist;
                     let threshold = state.config.get_mouse_sensitivity().mouse_threshold_pixels();
 
@@ -147,111 +75,98 @@ unsafe extern "C" fn event_tap_callback(
                     }
                 }
             }
-            state.last_mouse_x = point.x;
-            state.last_mouse_y = point.y;
-            state.mouse_has_prev = true;
         }
-    }
 
-    // 2. Scroll Wheel Event (kCGEventScrollWheel = 22)
-    if event_type == 22 {
-        if state.config.is_scroll_enabled() {
-            // kCGScrollWheelEventDeltaAxis1 = 11 (vertical), kCGScrollWheelEventDeltaAxis2 = 12 (horizontal)
-            // Or point delta: kCGScrollWheelEventPointDeltaAxis1 = 96, kCGScrollWheelEventPointDeltaAxis2 = 97
-            let delta_y = CGEventGetIntegerValueField(event, 11) as f64;
-            let delta_x = CGEventGetIntegerValueField(event, 12) as f64;
-            let pt_delta_y = CGEventGetIntegerValueField(event, 96) as f64;
-            let pt_delta_x = CGEventGetIntegerValueField(event, 97) as f64;
+        // 2. Scroll Wheel (22)
+        if event_type == 22 {
+            if state.config.is_scroll_enabled() {
+                let delta_y: f64 = msg_send![event, scrollingDeltaY];
+                let delta_x: f64 = msg_send![event, scrollingDeltaX];
+                let has_precise: bool = msg_send![event, hasPreciseScrollingDeltas];
 
-            let scroll_magnitude = if pt_delta_y.abs() > 0.0 || pt_delta_x.abs() > 0.0 {
-                pt_delta_y.abs() + pt_delta_x.abs()
-            } else {
-                (delta_y.abs() + delta_x.abs()) * 5.0
-            };
+                let scroll_magnitude = if has_precise {
+                    delta_y.abs() + delta_x.abs()
+                } else {
+                    let dy: f64 = msg_send![event, deltaY];
+                    let dx: f64 = msg_send![event, deltaX];
+                    (dy.abs() + dx.abs()) * 6.0
+                };
 
-            if scroll_magnitude > 0.0 {
-                state.accumulated_scroll += scroll_magnitude;
-                let threshold = state.config.get_scroll_sensitivity().scroll_threshold_units();
+                if scroll_magnitude > 0.0 {
+                    state.accumulated_scroll += scroll_magnitude;
+                    let threshold = state.config.get_scroll_sensitivity().scroll_threshold_units();
 
-                if state.accumulated_scroll >= threshold {
-                    if now.duration_since(state.last_haptic_time) >= min_interval {
-                        perform_haptic(pattern);
-                        state.last_haptic_time = now;
+                    if state.accumulated_scroll >= threshold {
+                        if now.duration_since(state.last_haptic_time) >= min_interval {
+                            perform_haptic(pattern);
+                            state.last_haptic_time = now;
+                        }
+                        state.accumulated_scroll = 0.0;
                     }
-                    state.accumulated_scroll = 0.0;
                 }
             }
         }
     }
-
-    event
 }
 
-/// Starts the global event tap listener on a dedicated background thread.
+/// Sets up system-wide NSEvent global and local monitors
 pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
     if !is_accessibility_trusted(true) {
-        eprintln!("[Haptic] Accessibility permission not granted yet. Prompting user...");
+        eprintln!("[Haptic] Accessibility permission requested. Please enable in System Settings.");
     }
 
-    std::thread::Builder::new()
-        .name("haptic-event-tap".into())
-        .spawn(move || unsafe {
-            let state = Box::into_raw(Box::new(TapState {
-                config,
-                tap_port: std::ptr::null_mut(),
-                last_mouse_x: 0.0,
-                last_mouse_y: 0.0,
-                mouse_has_prev: false,
-                accumulated_mouse_dist: 0.0,
-                accumulated_scroll: 0.0,
-                last_haptic_time: Instant::now(),
-            }));
+    let state = Arc::new(Mutex::new(MonitorState {
+        config,
+        accumulated_mouse_dist: 0.0,
+        accumulated_scroll: 0.0,
+        last_haptic_time: Instant::now(),
+    }));
 
-            // kCGEventMouseMoved = 5, kCGEventScrollWheel = 22
-            let mask: u64 = (1 << 5) | (1 << 22);
+    unsafe {
+        // Mask: MouseMoved (1 << 5), LeftMouseDragged (1 << 6), RightMouseDragged (1 << 7), OtherMouseDragged (1 << 27), ScrollWheel (1 << 22)
+        let mask: u64 = (1 << 5) | (1 << 6) | (1 << 7) | (1 << 27) | (1 << 22);
 
-            let tap = CGEventTapCreate(
-                0, // kCGHIDEventTap (Global system-wide across all apps)
-                0, // kCGHeadInsertEventTap
-                1, // kCGEventTapOptionListenOnly (no event blocking)
-                mask,
-                event_tap_callback,
-                state as *mut c_void,
-            );
+        // 1. Global Monitor (catches events when ANY other app is active in foreground)
+        let state_global = Arc::clone(&state);
+        let global_block = ConcreteBlock::new(move |event: Id| {
+            process_event(event, &state_global);
+        });
+        let global_block = global_block.copy();
 
-            if tap.is_null() {
-                eprintln!("[Haptic] Failed to create CGEventTap. Please grant Accessibility permissions in System Settings.");
-                return;
-            }
+        let global_monitor: Id = msg_send![
+            class!(NSEvent),
+            addGlobalMonitorForEventsMatchingMask: mask
+            handler: &*global_block
+        ];
 
-            // Save the tap port in state so event_tap_callback can safely re-enable it on timeout
-            (*state).tap_port = tap;
+        if global_monitor != NIL {
+            let () = msg_send![global_monitor, retain];
+            MONITOR_REF.store(global_monitor as usize, Ordering::Relaxed);
+            println!("[Haptic] Global NSEvent monitor active (system-wide background tracking enabled).");
+        } else {
+            eprintln!("[Haptic] Warning: Failed to add global NSEvent monitor.");
+        }
 
-            let loop_source = CFMachPortCreateRunLoopSource(
-                kCFAllocatorDefault,
-                tap,
-                0,
-            );
+        // 2. Local Monitor (catches events when our menu/app is active)
+        let state_local = Arc::clone(&state);
+        let local_block = ConcreteBlock::new(move |event: Id| -> Id {
+            process_event(event, &state_local);
+            event
+        });
+        let local_block = local_block.copy();
 
-            if loop_source.is_null() {
-                eprintln!("[Haptic] Failed to create CFRunLoopSource.");
-                return;
-            }
+        let local_monitor: Id = msg_send![
+            class!(NSEvent),
+            addLocalMonitorForEventsMatchingMask: mask
+            handler: &*local_block
+        ];
 
-            let current_loop = CFRunLoopGetCurrent();
-            CFRunLoopAddSource(
-                current_loop,
-                loop_source,
-                kCFRunLoopCommonModes,
-            );
-
-            CGEventTapEnable(tap, true);
-            println!("[Haptic] Event Tap active and listening for mouse movement & scroll events.");
-
-            // Run the background event loop
-            CFRunLoopRun();
-        })
-        .map_err(|_| "Failed to spawn event tap thread")?;
+        if local_monitor != NIL {
+            let () = msg_send![local_monitor, retain];
+            LOCAL_MONITOR_REF.store(local_monitor as usize, Ordering::Relaxed);
+            println!("[Haptic] Local NSEvent monitor active.");
+        }
+    }
 
     Ok(())
 }
