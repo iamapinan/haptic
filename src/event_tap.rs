@@ -5,15 +5,35 @@ use block::ConcreteBlock;
 use core_foundation::base::TCFType;
 use core_foundation::boolean::CFBoolean;
 use core_foundation::dictionary::CFDictionary;
+use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoopAddSource, CFRunLoopGetCurrent, CFRunLoopRun};
 use core_foundation::string::CFString;
 use objc::{class, msg_send, sel, sel_impl};
+use std::ffi::c_void;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
+type CFMachPortRef = *mut c_void;
+type CGEventRef = *mut c_void;
+type CGEventTapProxy = *mut c_void;
+
 #[link(name = "ApplicationServices", kind = "framework")]
 extern "C" {
     fn AXIsProcessTrustedWithOptions(options: core_foundation::dictionary::CFDictionaryRef) -> bool;
+}
+
+#[link(name = "CoreGraphics", kind = "framework")]
+extern "C" {
+    fn CGEventTapCreate(
+        tap: u32,
+        place: u32,
+        options: u32,
+        eventsOfInterest: u64,
+        callback: unsafe extern "C" fn(CGEventTapProxy, u32, CGEventRef, *mut c_void) -> CGEventRef,
+        userInfo: *mut c_void,
+    ) -> CFMachPortRef;
+    fn CGEventTapEnable(tap: CFMachPortRef, enable: bool);
+    fn CGEventGetIntegerValueField(event: CGEventRef, field: u32) -> i64;
 }
 
 pub fn is_accessibility_trusted(prompt: bool) -> bool {
@@ -41,7 +61,7 @@ struct MonitorState {
 static MONITOR_REF: AtomicUsize = AtomicUsize::new(0);
 static LOCAL_MONITOR_REF: AtomicUsize = AtomicUsize::new(0);
 
-fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
+fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
     unsafe {
         if event == NIL {
             return;
@@ -58,21 +78,7 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
         let min_interval = std::time::Duration::from_millis(state.config.get_min_interval_ms());
         let pattern = state.config.get_pattern();
 
-        // 1. Keyboard KeyDown (10) -> Mechanical Keyboard Sound
-        if event_type == 10 {
-            if state.config.is_keyboard_sound_enabled() {
-                let key_code: u16 = msg_send![event, keyCode];
-                let is_repeat: bool = msg_send![event, isARepeat];
-                let profile = state.config.get_sound_profile();
-                let vol = state.config.get_sound_volume();
-
-                // If key is repeating (held down), play slightly softer or at normal volume
-                let effective_vol = if is_repeat { (vol as f32 * 0.8) as u8 } else { vol };
-                play_keyboard_sound(key_code, profile, effective_vol);
-            }
-        }
-
-        // 2. Mouse Moved (5), LeftMouseDragged (6), RightMouseDragged (7), OtherMouseDragged (27)
+        // 1. Mouse Moved (5), LeftMouseDragged (6), RightMouseDragged (7), OtherMouseDragged (27)
         if event_type == 5 || event_type == 6 || event_type == 7 || event_type == 27 {
             if state.config.is_mouse_move_enabled() {
                 let dx: f64 = msg_send![event, deltaX];
@@ -94,7 +100,7 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
             }
         }
 
-        // 3. Scroll Wheel (22)
+        // 2. Scroll Wheel (22)
         if event_type == 22 {
             if state.config.is_scroll_enabled() {
                 let delta_y: f64 = msg_send![event, scrollingDeltaY];
@@ -124,7 +130,7 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
             }
         }
 
-        // 4. Multi-Touch Pinch to Zoom (Magnify = 30)
+        // 3. Multi-Touch Pinch to Zoom (Magnify = 30)
         if event_type == 30 {
             if state.config.is_gestures_enabled() {
                 let mag: f64 = msg_send![event, magnification];
@@ -141,7 +147,7 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
             }
         }
 
-        // 5. Multi-Touch Rotate (18)
+        // 4. Multi-Touch Rotate (18)
         if event_type == 18 {
             if state.config.is_gestures_enabled() {
                 let rot: f32 = msg_send![event, rotation];
@@ -158,7 +164,7 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
             }
         }
 
-        // 6. Multi-Touch Swipe (31)
+        // 5. Multi-Touch Swipe (31)
         if event_type == 31 {
             if state.config.is_gestures_enabled() {
                 if now.duration_since(state.last_haptic_time) >= min_interval {
@@ -170,12 +176,79 @@ fn process_event(event: Id, state_lock: &Mutex<MonitorState>) {
     }
 }
 
-/// Sets up system-wide NSEvent global and local monitors
+unsafe extern "C" fn keyboard_event_tap_callback(
+    _proxy: CGEventTapProxy,
+    event_type: u32,
+    event: CGEventRef,
+    user_data: *mut c_void,
+) -> CGEventRef {
+    if event.is_null() || user_data.is_null() {
+        return event;
+    }
+
+    // 10 = kCGEventKeyDown
+    if event_type == 10 {
+        let config = &*(user_data as *const AppConfig);
+        if config.is_enabled() && config.is_keyboard_sound_enabled() {
+            // 70 = kCGKeyboardEventKeycode, 71 = kCGKeyboardEventAutorepeat
+            let key_code = CGEventGetIntegerValueField(event, 70) as u16;
+            let is_repeat = CGEventGetIntegerValueField(event, 71) != 0;
+            let profile = config.get_sound_profile();
+            let vol = config.get_sound_volume();
+
+            let effective_vol = if is_repeat {
+                (vol as f32 * 0.8) as u8
+            } else {
+                vol
+            };
+
+            play_keyboard_sound(key_code, profile, effective_vol);
+        }
+    }
+
+    event
+}
+
+/// Sets up system-wide NSEvent monitors for gestures/mouse + CGEventTap for keyboard
 pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
     if !is_accessibility_trusted(true) {
         eprintln!("[Haptic] Accessibility permission requested. Please enable in System Settings.");
     }
 
+    // 1. Start dedicated background CGEventTap for system-wide KeyDown events
+    let config_kb = Arc::clone(&config);
+    std::thread::spawn(move || unsafe {
+        let mask: u64 = 1 << 10; // kCGEventKeyDown
+
+        loop {
+            let tap = CGEventTapCreate(
+                1, // kCGSessionEventTap
+                0, // kCGHeadInsertEventTap
+                1, // kCGEventTapOptionListenOnly
+                mask,
+                keyboard_event_tap_callback,
+                Arc::as_ptr(&config_kb) as *mut c_void,
+            );
+
+            if !tap.is_null() {
+                let loop_source = core_foundation::mach_port::CFMachPortCreateRunLoopSource(
+                    std::ptr::null_mut(),
+                    tap as _,
+                    0,
+                );
+                CFRunLoopAddSource(CFRunLoopGetCurrent(), loop_source, kCFRunLoopCommonModes);
+                CGEventTapEnable(tap, true);
+                println!("[Haptic] Global Keyboard Sound CGEventTap active.");
+                CFRunLoopRun();
+                break;
+            }
+
+            // Retry after 1 second if accessibility was not yet granted on startup
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+        }
+    });
+
+    // 2. Start NSEvent Monitors for Mouse and Multi-Touch Gestures
     let state = Arc::new(Mutex::new(MonitorState {
         config,
         accumulated_mouse_dist: 0.0,
@@ -186,11 +259,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
     }));
 
     unsafe {
-        // Mask:
-        // KeyDown (1 << 10), MouseMoved (1 << 5), LeftMouseDragged (1 << 6), RightMouseDragged (1 << 7), OtherMouseDragged (1 << 27),
-        // ScrollWheel (1 << 22), Rotate (1 << 18), Magnify/Pinch (1 << 30), Swipe (1 << 31)
-        let mask: u64 = (1 << 10)
-            | (1 << 5)
+        let mask: u64 = (1 << 5)
             | (1 << 6)
             | (1 << 7)
             | (1 << 27)
@@ -199,10 +268,10 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
             | (1 << 30)
             | (1 << 31);
 
-        // 1. Global Monitor (catches events when ANY other app is active in foreground)
+        // Global Monitor
         let state_global = Arc::clone(&state);
         let global_block = ConcreteBlock::new(move |event: Id| {
-            process_event(event, &state_global);
+            process_mouse_gesture_event(event, &state_global);
         });
         let global_block = global_block.copy();
 
@@ -215,15 +284,13 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
         if global_monitor != NIL {
             let () = msg_send![global_monitor, retain];
             MONITOR_REF.store(global_monitor as usize, Ordering::Relaxed);
-            println!("[Haptic] Global Multi-Touch, Mouse & Keyboard sound monitor active.");
-        } else {
-            eprintln!("[Haptic] Warning: Failed to add global NSEvent monitor.");
+            println!("[Haptic] Global Multi-Touch & Mouse monitor active.");
         }
 
-        // 2. Local Monitor (catches events when our menu/app is active)
+        // Local Monitor
         let state_local = Arc::clone(&state);
         let local_block = ConcreteBlock::new(move |event: Id| -> Id {
-            process_event(event, &state_local);
+            process_mouse_gesture_event(event, &state_local);
             event
         });
         let local_block = local_block.copy();
