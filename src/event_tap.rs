@@ -60,6 +60,7 @@ struct MonitorState {
 
 static MONITOR_REF: AtomicUsize = AtomicUsize::new(0);
 static LOCAL_MONITOR_REF: AtomicUsize = AtomicUsize::new(0);
+static KEYBOARD_TAP_REF: AtomicUsize = AtomicUsize::new(0);
 
 fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
     unsafe {
@@ -187,21 +188,21 @@ unsafe extern "C" fn keyboard_event_tap_callback(
         return event;
     }
 
-    if event_type == 10 {
+    if event_type == 0xFFFFFFFE || event_type == 0xFFFFFFFF {
+        let tap = KEYBOARD_TAP_REF.load(Ordering::Relaxed) as CFMachPortRef;
+        if !tap.is_null() {
+            CGEventTapEnable(tap, true);
+        }
+        return event;
+    }
+
+    if event_type == 10 { // 10 = kCGEventKeyDown
         let config = &*(user_data as *const AppConfig);
         if config.is_enabled() && config.is_keyboard_sound_enabled() {
             let key_code = CGEventGetIntegerValueField(event, 70) as u16;
-            let is_repeat = CGEventGetIntegerValueField(event, 71) != 0;
             let profile = config.get_sound_profile();
             let vol = config.get_sound_volume();
-
-            let effective_vol = if is_repeat {
-                (vol as f32 * 0.8) as u8
-            } else {
-                vol
-            };
-
-            play_keyboard_sound(key_code, profile, effective_vol);
+            play_keyboard_sound(key_code, profile, vol);
         }
     }
 
@@ -217,19 +218,33 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
     // 1. Dedicated background CGEventTap for system-wide KeyDown events
     let config_kb = Arc::clone(&config);
     std::thread::spawn(move || unsafe {
-        let mask: u64 = 1 << 10; // kCGEventKeyDown
+        let raw_config = Arc::into_raw(config_kb) as *mut c_void;
+        let mask: u64 = 1 << 10; // kCGEventKeyDown (10)
 
         loop {
-            let tap = CGEventTapCreate(
+            // Try Session Tap (1) first, fallback to HID Tap (0)
+            let mut tap = CGEventTapCreate(
                 1, // kCGSessionEventTap
                 0, // kCGHeadInsertEventTap
                 1, // kCGEventTapOptionListenOnly
                 mask,
                 keyboard_event_tap_callback,
-                Arc::as_ptr(&config_kb) as *mut c_void,
+                raw_config,
             );
 
+            if tap.is_null() {
+                tap = CGEventTapCreate(
+                    0, // kCGHIDEventTap
+                    0, // kCGHeadInsertEventTap
+                    1, // kCGEventTapOptionListenOnly
+                    mask,
+                    keyboard_event_tap_callback,
+                    raw_config,
+                );
+            }
+
             if !tap.is_null() {
+                KEYBOARD_TAP_REF.store(tap as usize, Ordering::Relaxed);
                 let loop_source = core_foundation::mach_port::CFMachPortCreateRunLoopSource(
                     std::ptr::null_mut(),
                     tap as _,
@@ -237,7 +252,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
                 );
                 CFRunLoopAddSource(CFRunLoopGetCurrent(), loop_source, kCFRunLoopCommonModes);
                 CGEventTapEnable(tap, true);
-                println!("[Haptic] Global Keyboard Sound CGEventTap active.");
+                println!("[Haptic] Global Keyboard Sound CGEventTap active & listening.");
                 CFRunLoopRun();
                 break;
             }
