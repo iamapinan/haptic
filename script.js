@@ -171,136 +171,124 @@ let currentProfile = 'thock';
 let currentIntensity = 'generic';
 let pulseCount = 0;
 
-function getKeyPitch(keyVal, code) {
-    if (keyVal === ' ' || code === 'Space') return 0.74;
-    if (keyVal === 'Enter' || code === 'Enter') return 0.82;
-    if (keyVal === 'Backspace' || code === 'Backspace') return 0.88;
-    if (keyVal === 'Tab' || code === 'Tab') return 0.92;
-    if (keyVal === 'Escape' || code === 'Escape') return 1.36;
+function getKeyFrequency(keyVal, code) {
+    if (keyVal === ' ' || code === 'Space') return 98.00;
+    if (keyVal === 'Enter' || code === 'Enter') return 130.81;
+    if (keyVal === 'Backspace' || code === 'Backspace') return 146.83;
+    if (keyVal === 'Tab' || code === 'Tab') return 164.81;
+    if (keyVal === 'Escape' || code === 'Escape') return 523.25;
 
     const char = (keyVal || 'a').toLowerCase();
     const rowMap = {
-        'z': 0.84, 'x': 0.87, 'c': 0.90, 'v': 0.93, 'b': 0.96, 'n': 0.99, 'm': 1.02, ',': 1.05, '.': 1.08, '/': 1.11,
-        'a': 0.95, 's': 0.98, 'd': 1.01, 'f': 1.05, 'g': 1.09, 'h': 1.13, 'j': 1.17, 'k': 1.21, 'l': 1.25, ';': 1.28, "'": 1.31,
-        'q': 1.08, 'w': 1.11, 'e': 1.15, 'r': 1.18, 't': 1.22, 'y': 1.25, 'u': 1.29, 'i': 1.33, 'o': 1.37, 'p': 1.41, '[': 1.44, ']': 1.48,
-        '1': 1.20, '2': 1.23, '3': 1.27, '4': 1.30, '5': 1.34, '6': 1.37, '7': 1.41, '8': 1.45, '9': 1.48, '0': 1.52, '-': 1.55, '=': 1.58
+        'z': 196.00, 'x': 220.00, 'c': 261.63, 'v': 293.66, 'b': 329.63, 'n': 392.00, 'm': 440.00, ',': 523.25, '.': 587.33, '/': 659.25,
+        'a': 261.63, 's': 293.66, 'd': 329.63, 'f': 392.00, 'g': 440.00, 'h': 523.25, 'j': 587.33, 'k': 659.25, 'l': 783.99, ';': 880.00, "'": 1046.50,
+        'q': 392.00, 'w': 440.00, 'e': 523.25, 'r': 587.33, 't': 659.25, 'y': 783.99, 'u': 880.00, 'i': 1046.50, 'o': 1174.66, 'p': 1318.51, '[': 1567.98, ']': 1760.00,
+        '1': 523.25, '2': 587.33, '3': 659.25, '4': 783.99, '5': 880.00, '6': 1046.50, '7': 1174.66, '8': 1318.51, '9': 1567.98, '0': 1760.00, '-': 2093.00, '=': 2349.32
     };
 
     if (rowMap[char]) return rowMap[char];
+    const scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99, 880.00];
     const charCode = char.charCodeAt(0) || 65;
-    return 0.85 + ((charCode * 137 + 41) % 30) * 0.017;
+    return scale[(charCode * 7 + 3) % scale.length];
 }
 
-// Synthesize Mechanical Switch Sound in Web Audio API
+// Synthesize Mechanical & Melodic Sound in Web Audio API
 function playMechanicalKeySound(keyVal = 'a', code = '') {
     try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
-        const pitch = getKeyPitch(keyVal, code);
-        const isSpace = keyVal === ' ' || code === 'Space';
-        const isEnter = keyVal === 'Enter' || keyVal === 'Backspace' || code === 'Enter' || code === 'Backspace';
+        const freq = getKeyFrequency(keyVal, code);
 
-        if (currentProfile === 'thock') {
-            // Cream / Holy Panda Deep Thock
+        if (currentProfile === 'marimba' || currentProfile === 'thock') {
+            // Pure wooden chime / marimba note with rich harmonic overtones
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
-            
-            const baseFreq = (isSpace ? 150 : isEnter ? 230 : 370) * pitch;
             osc.type = 'sine';
-            osc.frequency.setValueAtTime(baseFreq * 1.8, now);
-            osc.frequency.exponentialRampToValueAtTime(baseFreq, now + 0.015);
-            
-            gain.gain.setValueAtTime(0.75, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
-            
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            
-            osc.start(now);
-            osc.stop(now + 0.05);
+            osc.frequency.setValueAtTime(freq, now);
 
-            // Pop Noise
-            const bufferSize = ctx.sampleRate * 0.02;
-            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = Math.random() * 2 - 1;
-            }
-            const noise = ctx.createBufferSource();
-            noise.buffer = buffer;
-            const noiseFilter = ctx.createBiquadFilter();
-            noiseFilter.type = 'lowpass';
-            noiseFilter.frequency.value = 1200 * pitch;
-
-            const noiseGain = ctx.createGain();
-            noiseGain.gain.setValueAtTime(0.20, now);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
-
-            noise.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
-            noiseGain.connect(ctx.destination);
-
-            noise.start(now);
-            noise.stop(now + 0.025);
-
-        } else if (currentProfile === 'blue') {
-            // Clicky Blue Switch
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-
-            osc.type = 'triangle';
-            osc.frequency.setValueAtTime(3600 * pitch, now);
-            osc.frequency.exponentialRampToValueAtTime(800 * pitch, now + 0.02);
-
-            gain.gain.setValueAtTime(0.65, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+            gain.gain.setValueAtTime(0.70, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
 
             osc.connect(gain);
             gain.connect(ctx.destination);
-
             osc.start(now);
-            osc.stop(now + 0.04);
+            osc.stop(now + 0.09);
 
-            // Metallic transient
+            // 2nd Harmonic
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(freq * 2.0, now);
+            gain2.gain.setValueAtTime(0.35, now);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now);
+            osc2.stop(now + 0.065);
+
+            // Subtle thock click snap
             const snap = ctx.createOscillator();
             const snapGain = ctx.createGain();
-            snap.type = 'sine';
-            snap.frequency.setValueAtTime(6000 * pitch, now);
-            snapGain.gain.setValueAtTime(0.3, now);
-            snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.008);
+            snap.type = 'triangle';
+            snap.frequency.setValueAtTime(Math.min(freq * 4.0, 8000), now);
+            snapGain.gain.setValueAtTime(0.30, now);
+            snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
             snap.connect(snapGain);
             snapGain.connect(ctx.destination);
             snap.start(now);
-            snap.stop(now + 0.01);
+            snap.stop(now + 0.015);
+
+        } else if (currentProfile === 'blue') {
+            // Clicky Blue Switch + melodic chime
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0.55, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.055);
+
+            // High mechanical click
+            const snap = ctx.createOscillator();
+            const snapGain = ctx.createGain();
+            snap.type = 'triangle';
+            snap.frequency.setValueAtTime(4200, now);
+            snapGain.gain.setValueAtTime(0.50, now);
+            snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+            snap.connect(snapGain);
+            snapGain.connect(ctx.destination);
+            snap.start(now);
+            snap.stop(now + 0.02);
 
         } else if (currentProfile === 'typewriter') {
-            // Vintage Typewriter
+            // Vintage Typewriter + tuned bell ring
             const strike = ctx.createOscillator();
             const strikeGain = ctx.createGain();
-            const strikeFreq = (isSpace ? 220 : 480) * pitch;
-
             strike.type = 'triangle';
-            strike.frequency.setValueAtTime(strikeFreq * 2, now);
-            strike.frequency.exponentialRampToValueAtTime(strikeFreq, now + 0.015);
-            strikeGain.gain.setValueAtTime(0.65, now);
-            strikeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-
+            strike.frequency.setValueAtTime(420, now);
+            strike.frequency.exponentialRampToValueAtTime(180, now + 0.02);
+            strikeGain.gain.setValueAtTime(0.55, now);
+            strikeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
             strike.connect(strikeGain);
             strikeGain.connect(ctx.destination);
             strike.start(now);
-            strike.stop(now + 0.055);
+            strike.stop(now + 0.045);
 
-            // Ring
+            // Tuned bell ring
             const ring = ctx.createOscillator();
             const ringGain = ctx.createGain();
             ring.type = 'sine';
-            ring.frequency.setValueAtTime(2200 * pitch, now);
-            ringGain.gain.setValueAtTime(0.25, now);
-            ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+            ring.frequency.setValueAtTime(freq, now);
+            ringGain.gain.setValueAtTime(0.45, now);
+            ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
             ring.connect(ringGain);
             ringGain.connect(ctx.destination);
             ring.start(now);
-            ring.stop(now + 0.065);
+            ring.stop(now + 0.08);
         }
     } catch (e) {
         console.error("Audio error:", e);

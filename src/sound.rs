@@ -5,18 +5,20 @@ use std::sync::Mutex;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum SoundProfile {
-    ClickyBlue = 0,
+    MusicalMarimba = 0,
     DeepThock = 1,
-    Typewriter = 2,
+    ClickyBlue = 2,
+    Typewriter = 3,
 }
 
 impl SoundProfile {
     pub fn from_u8(val: u8) -> Self {
         match val {
-            0 => SoundProfile::ClickyBlue,
+            0 => SoundProfile::MusicalMarimba,
             1 => SoundProfile::DeepThock,
-            2 => SoundProfile::Typewriter,
-            _ => SoundProfile::ClickyBlue,
+            2 => SoundProfile::ClickyBlue,
+            3 => SoundProfile::Typewriter,
+            _ => SoundProfile::MusicalMarimba,
         }
     }
 }
@@ -24,8 +26,8 @@ impl SoundProfile {
 pub struct SoundEngine {
     _stream: OutputStream,
     stream_handle: OutputStreamHandle,
-    // [profile 0..3][key_type 0..3] -> WAV bytes
-    keyboard_wavs: Vec<Vec<Vec<u8>>>,
+    // [profile 0..4][key_code 0..128] -> WAV bytes
+    key_wavs: Vec<Vec<Vec<u8>>>,
     // [pattern 0..3] -> WAV bytes
     tick_wavs: Vec<Vec<u8>>,
 }
@@ -75,15 +77,104 @@ fn generate_haptic_tick_wav(pattern: HapticPattern) -> Vec<u8> {
     encode_wav_pcm(&pcm)
 }
 
-/// Generates a realistic mechanical switch WAV in memory
-fn generate_switch_wav(profile: SoundProfile, key_type: usize, vol_multiplier: f64) -> Vec<u8> {
+/// Returns the exact musical frequency (Hz) for every key on the keyboard (Major Pentatonic / Diatonic)
+pub fn get_key_frequency(key_code: u16) -> f64 {
+    match key_code {
+        // Spacebar - Deep G2 Bass (warm, resonant foundation)
+        49 => 98.00,
+
+        // Return / Enter - Solid C3 Bass
+        36 => 130.81,
+
+        // Backspace / Delete - D3 Accent
+        51 => 146.83,
+
+        // Tab - E3
+        48 => 164.81,
+
+        // Escape - High C5
+        53 => 523.25,
+
+        // Bottom Row (Z, X, C, V, B, N, M, ,, ., /)
+        6 => 196.00,  // Z (G3)
+        7 => 220.00,  // X (A3)
+        8 => 261.63,  // C (C4 - Middle C)
+        9 => 293.66,  // V (D4)
+        11 => 329.63, // B (E4)
+        45 => 392.00, // N (G4)
+        46 => 440.00, // M (A4)
+        43 => 523.25, // , (C5)
+        47 => 587.33, // . (D5)
+        44 => 659.25, // / (E5)
+
+        // Home Row (A, S, D, F, G, H, J, K, L, ;, ')
+        0 => 261.63,  // A (C4)
+        1 => 293.66,  // S (D4)
+        2 => 329.63,  // D (E4)
+        3 => 392.00,  // F (G4)
+        5 => 440.00,  // G (A4)
+        4 => 523.25,  // H (C5)
+        38 => 587.33, // J (D5)
+        40 => 659.25, // K (E5)
+        37 => 783.99, // L (G5)
+        41 => 880.00, // ; (A5)
+        39 => 1046.50, // ' (C6)
+
+        // Top Row (Q, W, E, R, T, Y, U, I, O, P, [, ])
+        12 => 392.00, // Q (G4)
+        13 => 440.00, // W (A4)
+        14 => 523.25, // E (C5)
+        15 => 587.33, // R (D5)
+        17 => 659.25, // T (E5)
+        16 => 783.99, // Y (G5)
+        32 => 880.00, // U (A5)
+        34 => 1046.50, // I (C6)
+        31 => 1174.66, // O (D6)
+        35 => 1318.51, // P (E6)
+        33 => 1567.98, // [ (G6)
+        30 => 1760.00, // ] (A6)
+
+        // Number Row (1, 2, 3, 4, 5, 6, 7, 8, 9, 0, -, =)
+        18 => 523.25,  // 1 (C5)
+        19 => 587.33,  // 2 (D5)
+        20 => 659.25,  // 3 (E5)
+        21 => 783.99,  // 4 (G5)
+        23 => 880.00,  // 5 (A5)
+        22 => 1046.50, // 6 (C6)
+        26 => 1174.66, // 7 (D6)
+        28 => 1318.51, // 8 (E6)
+        25 => 1567.98, // 9 (G6)
+        29 => 1760.00, // 0 (A6)
+        27 => 2093.00, // - (C7)
+        24 => 2349.32, // = (D7)
+
+        // Arrow keys
+        123 => 329.63, // Left (E4)
+        125 => 261.63, // Down (C4)
+        124 => 392.00, // Right (G4)
+        126 => 523.25, // Up (C5)
+
+        // Stable musical pentatonic distribution for any extra keys
+        other => {
+            const PENTATONIC: [f64; 10] = [
+                261.63, 293.66, 329.63, 392.00, 440.00,
+                523.25, 587.33, 659.25, 783.99, 880.00,
+            ];
+            PENTATONIC[(other as usize * 7 + 3) % PENTATONIC.len()]
+        }
+    }
+}
+
+/// Generates a rich, distinct musical mechanical switch WAV in memory for a specific keycode
+fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -> Vec<u8> {
     let sample_rate = 44100.0;
-    let duration = match (profile, key_type) {
-        (_, 1) => 0.065, // Spacebar
-        (_, 2) => 0.055, // Enter / Backspace
-        (SoundProfile::ClickyBlue, _) => 0.040,
-        (SoundProfile::DeepThock, _) => 0.048,
-        (SoundProfile::Typewriter, _) => 0.058,
+    let freq = get_key_frequency(key_code);
+
+    let duration = match profile {
+        SoundProfile::MusicalMarimba => 0.085,
+        SoundProfile::DeepThock => 0.065,
+        SoundProfile::ClickyBlue => 0.055,
+        SoundProfile::Typewriter => 0.075,
     };
 
     let total_samples = (sample_rate * duration) as usize;
@@ -92,39 +183,37 @@ fn generate_switch_wav(profile: SoundProfile, key_type: usize, vol_multiplier: f
     for i in 0..total_samples {
         let t = i as f64 / sample_rate;
         let sample: f64 = match profile {
-            SoundProfile::ClickyBlue => {
-                let click_env = (-t * 400.0).exp();
-                let click = (2.0 * std::f64::consts::PI * 3500.0 * t).sin() * click_env;
+            SoundProfile::MusicalMarimba => {
+                // Pure wooden chime / marimba note with rich harmonic overtones
+                let strike = (2.0 * std::f64::consts::PI * (freq * 4.0).min(12000.0) * t).sin() * (-t * 350.0).exp() * 0.25;
+                let tone = (2.0 * std::f64::consts::PI * freq * t).sin() * (-t * 26.0).exp();
+                let overtone = (2.0 * std::f64::consts::PI * (freq * 2.0) * t).sin() * (-t * 40.0).exp() * 0.35;
+                let chime = (2.0 * std::f64::consts::PI * (freq * 3.0) * t).sin() * (-t * 65.0).exp() * 0.15;
 
-                let body_freq = if key_type == 1 { 220.0 } else if key_type == 2 { 320.0 } else { 580.0 };
-                let body_env = (-t * 110.0).exp();
-                let body = (2.0 * std::f64::consts::PI * body_freq * t).sin() * body_env;
-
-                let noise = ((i * 1103515245 + 12345) % 1000) as f64 / 500.0 - 1.0;
-                let noise_env = (-t * 500.0).exp();
-
-                (click * 0.70 + body * 0.40 + noise * noise_env * 0.25) * vol_multiplier
+                (strike + tone * 0.70 + overtone + chime) * vol_multiplier
             }
             SoundProfile::DeepThock => {
-                let base_freq = if key_type == 1 { 150.0 } else if key_type == 2 { 230.0 } else { 370.0 };
-                let thock_env = (-t * 120.0).exp();
-                let thock = (2.0 * std::f64::consts::PI * base_freq * t).sin() * thock_env;
+                // Creamy mechanical thock pop + distinct melodic pitch body
+                let pop_freq = if key_code == 49 { 140.0 } else { freq * 0.75 };
+                let thock = (2.0 * std::f64::consts::PI * pop_freq * t).sin() * (-t * 60.0).exp() * 0.60;
+                let melodic = (2.0 * std::f64::consts::PI * freq * t).sin() * (-t * 35.0).exp() * 0.45;
+                let snap = (2.0 * std::f64::consts::PI * 1800.0 * t).sin() * (-t * 350.0).exp() * 0.25;
 
-                let sub_thock = (2.0 * std::f64::consts::PI * (base_freq * 0.5) * t).sin() * (-t * 80.0).exp();
+                (thock + melodic + snap) * vol_multiplier
+            }
+            SoundProfile::ClickyBlue => {
+                // Crisp clicky snap (4kHz) + vibrant musical chime
+                let click = (2.0 * std::f64::consts::PI * 4200.0 * t).sin() * (-t * 350.0).exp() * 0.55;
+                let chime = (2.0 * std::f64::consts::PI * freq * t).sin() * (-t * 40.0).exp() * 0.50;
 
-                let pop_noise = ((i * 1664525 + 1013904223) % 1000) as f64 / 500.0 - 1.0;
-                let pop_env = (-t * 300.0).exp();
-
-                (thock * 0.75 + sub_thock * 0.40 + pop_noise * pop_env * 0.20) * vol_multiplier
+                (click + chime) * vol_multiplier
             }
             SoundProfile::Typewriter => {
-                let strike_freq = if key_type == 1 { 180.0 } else { 420.0 };
-                let strike = (2.0 * std::f64::consts::PI * strike_freq * t).sin() * (-t * 160.0).exp();
+                // Mechanical lever click + tuned metallic acoustic ring
+                let strike = (2.0 * std::f64::consts::PI * 420.0 * t).sin() * (-t * 160.0).exp() * 0.55;
+                let ring = (2.0 * std::f64::consts::PI * freq * t).sin() * (-t * 30.0).exp() * 0.45;
 
-                let metal_ring = (2.0 * std::f64::consts::PI * 2200.0 * t).sin() * (-t * 50.0).exp();
-                let noise = ((i * 214013 + 2531011) % 1000) as f64 / 500.0 - 1.0;
-
-                (strike * 0.65 + metal_ring * 0.30 + noise * (-t * 450.0).exp() * 0.30) * vol_multiplier
+                (strike + ring) * vol_multiplier
             }
         };
 
@@ -161,165 +250,80 @@ fn encode_wav_pcm(pcm: &[i16]) -> Vec<u8> {
     wav
 }
 
-pub fn init_sound_engine(_volume: u8) {
+/// Initializes the global sound engine with pre-rendered WAV buffers
+pub fn init_sound_engine(vol_pct: u8) {
     let mut guard = GLOBAL_SOUND_ENGINE.lock().unwrap();
     if guard.is_some() {
         return;
     }
 
-    let (_stream, stream_handle) = match OutputStream::try_default() {
-        Ok(res) => res,
-        Err(e) => {
-            eprintln!("[Haptic Sound] Failed to open CoreAudio output stream: {:?}", e);
-            return;
+    let vol_multiplier = (vol_pct as f64 / 100.0).clamp(0.1, 1.0);
+
+    // Try to obtain a default CoreAudio output stream
+    if let Ok((stream, stream_handle)) = OutputStream::try_default() {
+        let profiles = [
+            SoundProfile::MusicalMarimba,
+            SoundProfile::DeepThock,
+            SoundProfile::ClickyBlue,
+            SoundProfile::Typewriter,
+        ];
+
+        let mut key_wavs = Vec::with_capacity(profiles.len());
+
+        for &profile in &profiles {
+            let mut wavs_for_profile = Vec::with_capacity(128);
+            for key_code in 0..128u16 {
+                let wav = generate_key_wav(profile, key_code, vol_multiplier);
+                wavs_for_profile.push(wav);
+            }
+            key_wavs.push(wavs_for_profile);
         }
-    };
 
-    let profiles = [
-        SoundProfile::ClickyBlue,
-        SoundProfile::DeepThock,
-        SoundProfile::Typewriter,
-    ];
+        let tick_wavs = vec![
+            generate_haptic_tick_wav(HapticPattern::Generic),
+            generate_haptic_tick_wav(HapticPattern::Alignment),
+            generate_haptic_tick_wav(HapticPattern::LevelChange),
+        ];
 
-    let mut keyboard_wavs = Vec::new();
-    for (_p_idx, &profile) in profiles.iter().enumerate() {
-        let mut key_list = Vec::new();
-        for key_type in 0..3 {
-            let wav = generate_switch_wav(profile, key_type, 1.0);
-            key_list.push(wav);
-        }
-        keyboard_wavs.push(key_list);
+        *guard = Some(SoundEngine {
+            _stream: stream,
+            stream_handle,
+            key_wavs,
+            tick_wavs,
+        });
+
+        println!("[Haptic Sound] CoreAudio direct output stream initialized with 128 musical key notes.");
+    } else {
+        eprintln!("[Haptic Sound] Warning: Could not initialize CoreAudio default audio output device.");
     }
-
-    let patterns = [
-        HapticPattern::Generic,
-        HapticPattern::Alignment,
-        HapticPattern::LevelChange,
-    ];
-    let mut tick_wavs = Vec::new();
-    for (_t_idx, &pat) in patterns.iter().enumerate() {
-        let wav = generate_haptic_tick_wav(pat);
-        tick_wavs.push(wav);
-    }
-
-    println!("[Haptic Sound] CoreAudio direct output stream initialized.");
-
-    *guard = Some(SoundEngine {
-        _stream,
-        stream_handle,
-        keyboard_wavs,
-        tick_wavs,
-    });
 }
 
-/// Plays a subtle speaker audio tick to simulate haptic feedback
-pub fn play_haptic_audio_tick(pattern: HapticPattern) {
+/// Plays a haptic tick sound effect directly to CoreAudio
+pub fn play_haptic_tick_sound(pattern: HapticPattern, volume_pct: u8) {
+    if volume_pct == 0 {
+        return;
+    }
+
     let mut guard = GLOBAL_SOUND_ENGINE.lock().unwrap();
     if guard.is_none() {
         drop(guard);
-        init_sound_engine(70);
+        init_sound_engine(volume_pct);
         guard = GLOBAL_SOUND_ENGINE.lock().unwrap();
     }
 
     if let Some(engine) = guard.as_ref() {
-        let pat_idx = match pattern {
-            HapticPattern::Generic => 0,
-            HapticPattern::Alignment => 1,
-            HapticPattern::LevelChange => 2,
-        };
+        let idx = (pattern as usize).min(engine.tick_wavs.len() - 1);
+        let wav = &engine.tick_wavs[idx];
 
-        if pat_idx < engine.tick_wavs.len() {
-            let wav = &engine.tick_wavs[pat_idx];
-            if let Ok(sink) = Sink::try_new(&engine.stream_handle) {
-                sink.set_volume(0.85);
-                if let Ok(source) = Decoder::new(Cursor::new(wav.clone())) {
-                    sink.append(source);
-                    sink.detach();
-                }
+        if let Ok(sink) = Sink::try_new(&engine.stream_handle) {
+            let vol_float = (volume_pct as f32 / 100.0).clamp(0.0, 1.0);
+            sink.set_volume(vol_float);
+
+            if let Ok(source) = Decoder::new(Cursor::new(wav.clone())) {
+                sink.append(source);
+                sink.detach();
             }
         }
-    }
-}
-
-/// Returns a unique, harmonious musical pitch multiplier (speed) for every key on the keyboard
-pub fn get_key_pitch(key_code: u16) -> f32 {
-    match key_code {
-        // Spacebar - Deepest resonance
-        49 => 0.74,
-
-        // Return / Enter - Deep resonant thock
-        36 => 0.82,
-
-        // Backspace / Delete
-        51 => 0.88,
-
-        // Tab
-        48 => 0.92,
-
-        // Escape
-        53 => 1.36,
-
-        // Bottom Row (Z, X, C, V, B, N, M, ,, ., /)
-        6 => 0.84,  // Z
-        7 => 0.87,  // X
-        8 => 0.90,  // C
-        9 => 0.93,  // V
-        11 => 0.96, // B
-        45 => 0.99, // N
-        46 => 1.02, // M
-        43 => 1.05, // ,
-        47 => 1.08, // .
-        44 => 1.11, // /
-
-        // Home Row (A, S, D, F, G, H, J, K, L, ;, ')
-        0 => 0.95,  // A
-        1 => 0.98,  // S
-        2 => 1.01,  // D
-        3 => 1.05,  // F
-        5 => 1.09,  // G
-        4 => 1.13,  // H
-        38 => 1.17, // J
-        40 => 1.21, // K
-        37 => 1.25, // L
-        41 => 1.28, // ;
-        39 => 1.31, // '
-
-        // Top Row (Q, W, E, R, T, Y, U, I, O, P, [, ])
-        12 => 1.08, // Q
-        13 => 1.11, // W
-        14 => 1.15, // E
-        15 => 1.18, // R
-        17 => 1.22, // T
-        16 => 1.25, // Y
-        32 => 1.29, // U
-        34 => 1.33, // I
-        31 => 1.37, // O
-        35 => 1.41, // P
-        33 => 1.44, // [
-        30 => 1.48, // ]
-
-        // Number Row (1, 2, 3, 4, 5, 6, 7, 8, 9, 0, -, =)
-        18 => 1.20, // 1
-        19 => 1.23, // 2
-        20 => 1.27, // 3
-        21 => 1.30, // 4
-        23 => 1.34, // 5
-        22 => 1.37, // 6
-        26 => 1.41, // 7
-        28 => 1.45, // 8
-        25 => 1.48, // 9
-        29 => 1.52, // 0
-        27 => 1.55, // -
-        24 => 1.58, // =
-
-        // Arrow keys
-        123 => 0.90, // Left
-        124 => 1.10, // Right
-        125 => 0.85, // Down
-        126 => 1.20, // Up
-
-        // Fallback for any other modifier or special key: stable musical distribution
-        other => 0.85 + (((other as usize * 137 + 41) % 30) as f32 * 0.017),
     }
 }
 
@@ -337,24 +341,14 @@ pub fn play_keyboard_sound(key_code: u16, profile: SoundProfile, volume_pct: u8)
     }
 
     if let Some(engine) = guard.as_ref() {
-        let profile_idx = (profile as usize).min(engine.keyboard_wavs.len() - 1);
-
-        // HID Usages: 0x2C (44) = Space, 0x28 (40) = Enter, 0x2A (42) = Delete/Backspace
-        // Keycodes: 49 = Space, 36 = Return, 51 = Delete
-        let key_type = match key_code {
-            0x2C | 49 => 1,      // Space
-            0x28 | 0x2A | 36 | 51 => 2, // Return / Backspace
-            _ => 0,              // Default key
-        };
-
-        let wav = &engine.keyboard_wavs[profile_idx][key_type];
-        let pitch = get_key_pitch(key_code);
+        let profile_idx = (profile as usize).min(engine.key_wavs.len() - 1);
+        let key_idx = (key_code as usize).min(127);
+        let wav = &engine.key_wavs[profile_idx][key_idx];
 
         if let Ok(sink) = Sink::try_new(&engine.stream_handle) {
             // Precise linear volume scaling: 0.0 to 1.0
             let vol_float = (volume_pct as f32 / 100.0).clamp(0.0, 1.0);
             sink.set_volume(vol_float);
-            sink.set_speed(pitch);
 
             if let Ok(source) = Decoder::new(Cursor::new(wav.clone())) {
                 sink.append(source);
@@ -362,4 +356,9 @@ pub fn play_keyboard_sound(key_code: u16, profile: SoundProfile, volume_pct: u8)
             }
         }
     }
+}
+
+/// Plays a subtle speaker audio tick to simulate haptic feedback
+pub fn play_haptic_audio_tick(pattern: HapticPattern) {
+    play_haptic_tick_sound(pattern, 80);
 }

@@ -147,7 +147,7 @@ pub struct AppConfig {
     pub pattern: AtomicU8,              // 0 = Generic, 1 = Alignment, 2 = LevelChange
     pub mouse_sensitivity: AtomicU8,    // 0 = High, 1 = Medium, 2 = Low
     pub scroll_sensitivity: AtomicU8,   // 0 = High, 1 = Medium, 2 = Low
-    pub sound_profile: AtomicU8,        // 0 = Blue, 1 = Thock, 2 = Typewriter
+    pub sound_profile: AtomicU8,        // 0 = Musical Marimba, 1 = Thock, 2 = Blue, 3 = Typewriter
     pub sound_volume: AtomicU8,         // 0 - 100 (Default: 70)
     pub min_interval_ms: AtomicU64,     // minimum ms between consecutive haptic pulses
 }
@@ -166,8 +166,8 @@ impl AppConfig {
             pattern: AtomicU8::new(0), // Generic
             mouse_sensitivity: AtomicU8::new(1), // Medium
             scroll_sensitivity: AtomicU8::new(1), // Medium
-            sound_profile: AtomicU8::new(1), // Deep Thock (Creamy)
-            sound_volume: AtomicU8::new(70), // 70% volume
+            sound_profile: AtomicU8::new(0), // Musical Marimba (Melodic)
+            sound_volume: AtomicU8::new(75), // 75% volume
             min_interval_ms: AtomicU64::new(25), // 25ms limit
         })
     }
