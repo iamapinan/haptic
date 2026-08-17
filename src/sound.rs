@@ -239,7 +239,7 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
             }
             SoundProfile::DrumKit => {
                 // Authentic Acoustic Drum Kit Synthesizer (Professional Physical Modeling)
-                let mut rng = 0x12345678u32 ^ ((key_code as u32 + 1) * 2654435761);
+                let mut rng = 0x12345678u32 ^ (key_code as u32 + 1).wrapping_mul(2654435761);
                 let mut white_noise = || -> f64 {
                     rng = rng.wrapping_mul(1664525).wrapping_add(1013904223);
                     ((rng >> 16) as f64 / 32768.0) - 1.0
