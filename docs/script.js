@@ -33,8 +33,8 @@ const translations = {
         f2_desc: "For regular optical mice or desktop Macs (Mac mini / Mac Studio), simulate Apple Watch-like micro-ticks through speakers.",
         f3_title: "Multi-Touch Gestures",
         f3_desc: "Haptic feedback on Pinch-to-zoom in photos/browsers, 2-finger rotation, and multi-finger swipe navigation.",
-        f4_title: "IOKit Mechanical Keyboard Audio",
-        f4_desc: "Hardware-level IOHIDManager keystroke detection with ultra low-latency (<1ms) CoreAudio playback. Choose between Cream Thock, Blue Clicky, and Vintage Typewriter switches.",
+        f4_title: "Harmonic Musical Keyboard Engine (IOKit Hardware)",
+        f4_desc: "Hardware-level IOHIDManager keystroke detection with ultra low-latency (<1ms) CoreAudio playback. Every key produces a distinct, melodious pitch (Major Pentatonic Scale) turning your typing into music!",
         f5_title: "Pure Rust & Native Cocoa",
         f5_desc: "Compiled to native machine code. Uses less than 10MB RAM, zero Electron bloat, and runs 100% offline with zero data tracking.",
         f6_title: "Customizable Menu Bar Controls",
@@ -50,22 +50,22 @@ const translations = {
         step3_desc: "Launch the app and grant Accessibility permissions in System Settings so it can monitor mouse and key events.",
         build_title: "Or build from source code with Cargo:",
         footer_desc: "Open Source Native macOS Utility written in Rust.",
-        input_placeholder: "Type here to hear the mechanical switches (e.g. Hello Haptic)..."
+        input_placeholder: "Type here to play musical keyboard notes (e.g. Hello Haptic)..."
     },
     th: {
         nav_features: "ฟังก์ชันหลัก",
         nav_demo: "ทดลองใช้งานสด",
         nav_install: "วิธีติดตั้ง",
         hero_badge: "แอปยูทิลิตี้ Menu Bar เขียนด้วย Rust สำหรับ macOS",
-        hero_title: `เพิ่มสัมผัส Haptic & <br><span class="gradient-text">เสียงพิมพ์คีย์บอร์ด</span> บน Mac`,
-        hero_desc: "เพิ่มสัมผัสแรงสั่น Haptic ให้กับ Trackpad เมื่อเลื่อนเมาส์หรือ scroll และจำลองเสียงคลิก Mechanical Switch ที่นุ่มแน่นขณะพิมพ์งาน ทำงานเงียบๆ บน Menu Bar ไม่กินแรม ไม่หน่วงเครื่อง",
+        hero_title: `เพิ่มสัมผัส Haptic & <br><span class="gradient-text">เสียงพิมพ์คีย์บอร์ดดนตรี</span> บน Mac`,
+        hero_desc: "เพิ่มสัมผัสแรงสั่น Haptic ให้กับ Trackpad เมื่อเลื่อนเมาส์หรือ scroll และจำลองเสียงคีย์บอร์ดที่แต่ละปุ่มมีโทนเสียงดนตรีไม่ซ้ำกัน สไตล์ Pentatonic เมโลดี้เพราะๆ ขณะพิมพ์งาน ไม่กินแรม ไม่หน่วงเครื่อง",
         btn_download: "ดาวน์โหลด Haptic.dmg",
         btn_demo: "ทดลองฟังเสียงสด",
         meta_ram: "⚡️ น้ำหนักเบา กินแรม < 10MB",
         meta_rust: "🦀 Pure Rust & Native Cocoa",
         meta_offline: "🔒 ปลอดภัย ออฟไลน์ 100% โอเพนซอร์ส",
         demo_title: "ลองสัมผัสประสบการณ์สดบนเบราว์เซอร์",
-        demo_subtitle: "ทดลองเลื่อนเมาส์, scroll บนแผ่น Trackpad หรือลองพิมพ์คีย์บอร์ดด้านล่างเพื่อฟังเสียงจำลอง",
+        demo_subtitle: "ทดลองเลื่อนเมาส์, scroll บนแผ่น Trackpad หรือลองพิมพ์คีย์บอร์ดด้านล่างเพื่อฟังเสียงจำลองโน้ตดนตรี",
         ctrl_profile: "เลือกรูปแบบเสียงสวิตช์:",
         ctrl_intensity: "ระดับแรงสัมผัส Haptic:",
         opt_light: "เบา",
@@ -74,9 +74,9 @@ const translations = {
         trackpad_title: "แผ่นทดสอบ Trackpad & Scroll",
         trackpad_desc: "เลื่อนเมาส์ไปมา หรือเลื่อนลูกกลิ้ง Scroll Wheel ภายในกรอบนี้",
         pulse_label: "จังหวะสัมผัส (Pulses):",
-        kb_title: "ทดลองพิมพ์คีย์บอร์ด",
+        kb_title: "ทดลองพิมพ์คีย์บอร์ดดนตรี",
         kb_badge: "กดแป้นพิมพ์จริงได้เลย",
-        key_space: "Spacebar (Deep Thock แน่นๆ)",
+        key_space: "Spacebar (Deep Sub Bass ทุ้มแน่น)",
         feat_title: "ฟังก์ชันและคุณสมบัติครบครัน",
         feat_subtitle: "ออกแบบมาเพื่อความลื่นไหล เป็นธรรมชาติ และตอบสนองรวดเร็วระดับฮาร์ดแวร์",
         f1_title: "Force Touch Trackpad Haptics",
@@ -85,8 +85,8 @@ const translations = {
         f2_desc: "สำหรับผู้ใช้เมาส์ทั่วไป หรือ Mac mini / Mac Studio ที่ไม่มี Trackpad แอปสามารถจำลองเสียงติ๊กเบาๆ สไตล์ Apple Watch ผ่านลำโพงได้",
         f3_title: "รองรับ Multi-Touch Gestures",
         f3_desc: "สั่นตอบสนองเวลา Pinch-to-zoom (ซูมภาพ), หมุน 2 นิ้ว (Rotate) และปัด 2 นิ้ว / 3 นิ้ว นำทาง (Swipe)",
-        f4_title: "เสียงพิมพ์คีย์บอร์ดระดับ IOKit Hardware",
-        f4_desc: "ดักจับการกดปุ่มจากระดับ IOHIDManager ฮาร์ดแวร์โดยตรง พร้อมเล่นเสียงผ่าน CoreAudio ไร้การดีเลย์ (<1ms) สลับเสียง Switch ได้ทั้ง Cream Thock, Blue Clicky และ Typewriter",
+        f4_title: "เสียงพิมพ์คีย์บอร์ดดนตรี Harmonic Tone Engine",
+        f4_desc: "ดักจับการกดปุ่มระดับ IOHIDManager ฮาร์ดแวร์ พร้อมสังเคราะห์เสียงดนตรี (Pentatonic Scale) แยกความถี่ตามแต่ละปุ่ม ไร้การดีเลย์ (<1ms) สลับเสียงได้ทั้ง Musical Marimba, Cream Thock, Blue Clicky และ Typewriter",
         f5_title: "Pure Rust & Native Cocoa เบาและเร็ว",
         f5_desc: "คอมไพล์เป็นเนทีฟโค้ด กินแรมน้อยกว่า 10MB ไม่มี Electron และทำงานออฟไลน์ 100% ไม่เก็บข้อมูลใดๆ",
         f6_title: "ปรับแต่งได้ง่ายบน Menu Bar",
@@ -102,7 +102,7 @@ const translations = {
         step3_desc: "เปิดแอป แล้วเปิดสิทธิ์ใน System Settings ➜ Privacy & Security ➜ Accessibility เพื่อให้แอปตรวจจับเมาส์และการพิมพ์ได้",
         build_title: "หรือคอมไพล์เองจาก Source Code ด้วย Cargo:",
         footer_desc: "โอเพนซอร์สแอปพลิเคชันสำหรับ macOS พัฒนาด้วยภาษา Rust",
-        input_placeholder: "พิมพ์ข้อความทดสอบเสียงที่นี่ (เช่น สวัสดี Haptic)..."
+        input_placeholder: "พิมพ์ข้อความทดสอบเสียงดนตรีที่นี่ (เช่น สวัสดี Haptic)..."
     }
 };
 
@@ -167,7 +167,7 @@ function getAudioContext() {
     return audioCtx;
 }
 
-let currentProfile = 'thock';
+let currentProfile = 'marimba';
 let currentIntensity = 'generic';
 let pulseCount = 0;
 
