@@ -273,17 +273,18 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
             hammer.stop(now + 0.030);
 
         } else if (currentProfile === 'drum') {
-            // Authentic Acoustic Drum Kit Web Audio Synthesizer
+            // Classic Vintage Acoustic Drum Kit Web Audio Synthesizer
             const char = (keyVal || 'a').toLowerCase();
             const kCode = code || '';
 
-            // 1. Bass Drum / Kick (Spacebar, Enter, B, V, N, C, Z, X)
+            // 1. Classic Bass Drum / Kick (Spacebar, Enter, B, V, N, C, Z, X)
+            // Warm 22" maple shell with vintage felt beater thud
             if (keyVal === ' ' || kCode === 'Space' || keyVal === 'Enter' || kCode === 'Enter' || ['b', 'v', 'n', 'c', 'z', 'x'].includes(char)) {
                 const kick = ctx.createOscillator();
                 const kickGain = ctx.createGain();
                 kick.type = 'sine';
-                kick.frequency.setValueAtTime(130, now);
-                kick.frequency.exponentialRampToValueAtTime(42, now + 0.09);
+                kick.frequency.setValueAtTime(104, now);
+                kick.frequency.exponentialRampToValueAtTime(48, now + 0.08);
                 kickGain.gain.setValueAtTime(0.95, now);
                 kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.240);
                 kick.connect(kickGain);
@@ -291,86 +292,87 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 kick.start(now);
                 kick.stop(now + 0.245);
 
-                // Beater punch transient
-                const click = ctx.createOscillator();
-                const clickGain = ctx.createGain();
-                click.type = 'triangle';
-                click.frequency.setValueAtTime(2800, now);
-                clickGain.gain.setValueAtTime(0.40, now);
-                clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
-                click.connect(clickGain);
-                clickGain.connect(ctx.destination);
-                click.start(now);
-                click.stop(now + 0.020);
+                // Warm felt thud
+                const thud = ctx.createOscillator();
+                const thudGain = ctx.createGain();
+                thud.type = 'triangle';
+                thud.frequency.setValueAtTime(140, now);
+                thudGain.gain.setValueAtTime(0.45, now);
+                thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+                thud.connect(thudGain);
+                thudGain.connect(ctx.destination);
+                thud.start(now);
+                thud.stop(now + 0.050);
 
-            // 2. Snare Drum with Crisp Strainer Wire Rattle (J, F, D, K, S, L, A, ;, ')
+            // 2. Classic 14" Wooden Snare Drum (J, F, D, K, S, L, A, ;, ')
+            // Crisp pop crack + under-snare wire sizzle
             } else if (['j', 'f', 'd', 'k', 's', 'l', 'a', ';', "'"].includes(char)) {
                 const shell = ctx.createOscillator();
                 const shellGain = ctx.createGain();
                 shell.type = 'triangle';
-                shell.frequency.setValueAtTime(185, now);
-                shell.frequency.exponentialRampToValueAtTime(120, now + 0.06);
-                shellGain.gain.setValueAtTime(0.55, now);
-                shellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.180);
+                shell.frequency.setValueAtTime(230, now);
+                shell.frequency.exponentialRampToValueAtTime(165, now + 0.05);
+                shellGain.gain.setValueAtTime(0.60, now);
+                shellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.190);
                 shell.connect(shellGain);
                 shellGain.connect(ctx.destination);
                 shell.start(now);
-                shell.stop(now + 0.185);
+                shell.stop(now + 0.195);
 
                 // Snare wire rattle
                 const rattle = ctx.createOscillator();
                 const rattleGain = ctx.createGain();
                 rattle.type = 'sawtooth';
-                rattle.frequency.setValueAtTime(4200, now);
-                rattleGain.gain.setValueAtTime(0.50, now);
+                rattle.frequency.setValueAtTime(3400, now);
+                rattleGain.gain.setValueAtTime(0.55, now);
                 rattleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.140);
                 rattle.connect(rattleGain);
                 rattleGain.connect(ctx.destination);
                 rattle.start(now);
                 rattle.stop(now + 0.145);
 
-            // 3. Closed Hi-Hat (H, G, E, R, I, O)
+            // 3. Classic 14" Closed Hi-Hat (H, G, E, R, I, O)
             } else if (['h', 'g', 'e', 'r', 'i', 'o'].includes(char)) {
                 const hat = ctx.createOscillator();
                 const hatGain = ctx.createGain();
                 hat.type = 'sawtooth';
-                hat.frequency.setValueAtTime(9600, now);
+                hat.frequency.setValueAtTime(8400, now);
                 hatGain.gain.setValueAtTime(0.60, now);
-                hatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+                hatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
                 hat.connect(hatGain);
                 hatGain.connect(ctx.destination);
                 hat.start(now);
-                hat.stop(now + 0.070);
+                hat.stop(now + 0.060);
 
-            // 4. Open Hi-Hat (T, Y, U, W)
+            // 4. Classic Open Hi-Hat (T, Y, U, W)
             } else if (['t', 'y', 'u', 'w'].includes(char)) {
                 const openHat = ctx.createOscillator();
                 const openHatGain = ctx.createGain();
                 openHat.type = 'sawtooth';
-                openHat.frequency.setValueAtTime(8900, now);
+                openHat.frequency.setValueAtTime(7800, now);
                 openHatGain.gain.setValueAtTime(0.65, now);
-                openHatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.220);
+                openHatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.200);
                 openHat.connect(openHatGain);
                 openHatGain.connect(ctx.destination);
                 openHat.start(now);
-                openHat.stop(now + 0.225);
+                openHat.stop(now + 0.205);
 
-            // 5. Tom-Toms (Rack Toms for Roll Fills: 4, 5, 6, 7, Q, P)
+            // 5. Classic Tuned Rack Toms (Roll Fills: 4, 5, 6, 7, Q, P)
             } else if (['4', '5', '6', '7', 'q', 'p'].includes(char)) {
                 const tom = ctx.createOscillator();
                 const tomGain = ctx.createGain();
-                const tomFreq = ['4', 'q'].includes(char) ? 210 : (['5', 'p'].includes(char) ? 170 : 140);
+                const tomFreq = ['4', 'q'].includes(char) ? 196 : (['5', 'p'].includes(char) ? 164.8 : 146.8);
                 tom.type = 'sine';
-                tom.frequency.setValueAtTime(tomFreq * 1.5, now);
-                tom.frequency.exponentialRampToValueAtTime(tomFreq, now + 0.08);
-                tomGain.gain.setValueAtTime(0.80, now);
+                tom.frequency.setValueAtTime(tomFreq * 1.3, now);
+                tom.frequency.exponentialRampToValueAtTime(tomFreq, now + 0.07);
+                tomGain.gain.setValueAtTime(0.85, now);
                 tomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.220);
                 tom.connect(tomGain);
                 tomGain.connect(ctx.destination);
                 tom.start(now);
                 tom.stop(now + 0.225);
 
-            // 6. Floor Tom (Deep Low Tom: 1, 2, 3, 8, 9, 0, -, =)
+            // 6. Classic 16" Deep Floor Tom (1, 2, 3, 8, 9, 0, -, =)
             } else if (['1', '2', '3', '8', '9', '0', '-', '='].includes(char)) {
                 const floor = ctx.createOscillator();
                 const floorGain = ctx.createGain();
