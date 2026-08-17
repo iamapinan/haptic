@@ -5,20 +5,22 @@ use std::sync::Mutex;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum SoundProfile {
-    MusicalMarimba = 0,
-    DeepThock = 1,
-    ClickyBlue = 2,
-    Typewriter = 3,
+    GrandPiano = 0,
+    MusicalMarimba = 1,
+    DeepThock = 2,
+    ClickyBlue = 3,
+    Typewriter = 4,
 }
 
 impl SoundProfile {
     pub fn from_u8(val: u8) -> Self {
         match val {
-            0 => SoundProfile::MusicalMarimba,
-            1 => SoundProfile::DeepThock,
-            2 => SoundProfile::ClickyBlue,
-            3 => SoundProfile::Typewriter,
-            _ => SoundProfile::MusicalMarimba,
+            0 => SoundProfile::GrandPiano,
+            1 => SoundProfile::MusicalMarimba,
+            2 => SoundProfile::DeepThock,
+            3 => SoundProfile::ClickyBlue,
+            4 => SoundProfile::Typewriter,
+            _ => SoundProfile::GrandPiano,
         }
     }
 }
@@ -171,6 +173,7 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
     let freq = get_key_frequency(key_code);
 
     let duration = match profile {
+        SoundProfile::GrandPiano => 0.130,
         SoundProfile::MusicalMarimba => 0.085,
         SoundProfile::DeepThock => 0.065,
         SoundProfile::ClickyBlue => 0.055,
@@ -183,6 +186,19 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
     for i in 0..total_samples {
         let t = i as f64 / sample_rate;
         let sample: f64 = match profile {
+            SoundProfile::GrandPiano => {
+                // Concert Grand Piano with rich string harmonics and subtle felt hammer strike
+                let hammer_freq = (freq * 1.5).clamp(80.0, 350.0);
+                let strike = (2.0 * std::f64::consts::PI * hammer_freq * t).sin() * (-t * 220.0).exp() * 0.22;
+
+                let h1 = (2.0 * std::f64::consts::PI * freq * t).sin() * (-t * 14.0).exp() * 0.65;
+                let h2 = (2.0 * std::f64::consts::PI * (freq * 2.0) * t).sin() * (-t * 20.0).exp() * 0.38;
+                let h3 = (2.0 * std::f64::consts::PI * (freq * 3.0) * t).sin() * (-t * 28.0).exp() * 0.22;
+                let h4 = (2.0 * std::f64::consts::PI * (freq * 4.0) * t).sin() * (-t * 36.0).exp() * 0.12;
+                let h5 = (2.0 * std::f64::consts::PI * (freq * 5.0) * t).sin() * (-t * 48.0).exp() * 0.06;
+
+                (strike + h1 + h2 + h3 + h4 + h5) * vol_multiplier
+            }
             SoundProfile::MusicalMarimba => {
                 // Pure wooden chime / marimba note with rich harmonic overtones
                 let strike = (2.0 * std::f64::consts::PI * (freq * 4.0).min(12000.0) * t).sin() * (-t * 350.0).exp() * 0.25;
@@ -262,6 +278,7 @@ pub fn init_sound_engine(vol_pct: u8) {
     // Try to obtain a default CoreAudio output stream
     if let Ok((stream, stream_handle)) = OutputStream::try_default() {
         let profiles = [
+            SoundProfile::GrandPiano,
             SoundProfile::MusicalMarimba,
             SoundProfile::DeepThock,
             SoundProfile::ClickyBlue,

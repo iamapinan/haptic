@@ -49,6 +49,7 @@ const TAG_SCROLL_HIGH: isize = 401;
 const TAG_SCROLL_MED: isize = 402;
 const TAG_SCROLL_LOW: isize = 403;
 
+const TAG_SND_PIANO: isize = 499;
 const TAG_SND_MARIMBA: isize = 500;
 const TAG_SND_THOCK: isize = 501;
 const TAG_SND_BLUE: isize = 502;
@@ -169,6 +170,7 @@ pub fn update_menu_state() {
         set_item_state(scroll_menu, TAG_SCROLL_LOW, scroll_sens == Sensitivity::Low);
 
         // Update Sound Profile submenu
+        set_item_state(sound_profile_menu, TAG_SND_PIANO, sound_profile == SoundProfile::GrandPiano);
         set_item_state(sound_profile_menu, TAG_SND_MARIMBA, sound_profile == SoundProfile::MusicalMarimba);
         set_item_state(sound_profile_menu, TAG_SND_THOCK, sound_profile == SoundProfile::DeepThock);
         set_item_state(sound_profile_menu, TAG_SND_BLUE, sound_profile == SoundProfile::ClickyBlue);
@@ -357,6 +359,15 @@ extern "C" fn on_set_scroll_sens_low(_this: &Object, _cmd: Sel, _sender: Id) {
 }
 
 // Sound handlers
+extern "C" fn on_set_sound_piano(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_sound_profile(SoundProfile::GrandPiano);
+        play_keyboard_sound(49, SoundProfile::GrandPiano, config.get_sound_volume());
+        update_menu_state();
+    });
+}
+
 extern "C" fn on_set_sound_marimba(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
@@ -500,6 +511,7 @@ fn register_action_handler_class() -> &'static Class {
             decl.add_method(sel!(setScrollSensMed:), on_set_scroll_sens_med as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(setScrollSensLow:), on_set_scroll_sens_low as extern "C" fn(&Object, Sel, Id));
 
+            decl.add_method(sel!(setSoundPiano:), on_set_sound_piano as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(setSoundMarimba:), on_set_sound_marimba as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(setSoundThock:), on_set_sound_thock as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(setSoundBlue:), on_set_sound_blue as extern "C" fn(&Object, Sel, Id));
@@ -646,6 +658,7 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
         let () = msg_send![sound_profile_menu, retain];
         SOUND_PROFILE_MENU_REF.store(sound_profile_menu as usize, Ordering::Relaxed);
 
+        add_item(sound_profile_menu, "🎹 Grand Piano (Acoustic)", Some(sel!(setSoundPiano:)), TAG_SND_PIANO, "");
         add_item(sound_profile_menu, "🎵 Musical Marimba (Melodic)", Some(sel!(setSoundMarimba:)), TAG_SND_MARIMBA, "");
         add_item(sound_profile_menu, "Cream / Holy Panda (Thocky)", Some(sel!(setSoundThock:)), TAG_SND_THOCK, "");
         add_item(sound_profile_menu, "Blue Switch (Crisp Click)", Some(sel!(setSoundBlue:)), TAG_SND_BLUE, "");

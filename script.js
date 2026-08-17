@@ -167,7 +167,7 @@ function getAudioContext() {
     return audioCtx;
 }
 
-let currentProfile = 'marimba';
+let currentProfile = 'piano';
 let currentIntensity = 'generic';
 let pulseCount = 0;
 
@@ -199,7 +199,56 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
         const now = ctx.currentTime;
         const freq = getKeyFrequency(keyVal, code);
 
-        if (currentProfile === 'marimba' || currentProfile === 'thock') {
+        if (currentProfile === 'piano') {
+            // Concert Grand Piano with rich string harmonics and felt hammer strike
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0.65, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.130);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.135);
+
+            // 2nd Harmonic
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(freq * 2.0, now);
+            gain2.gain.setValueAtTime(0.38, now);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.090);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now);
+            osc2.stop(now + 0.095);
+
+            // 3rd Harmonic
+            const osc3 = ctx.createOscillator();
+            const gain3 = ctx.createGain();
+            osc3.type = 'sine';
+            osc3.frequency.setValueAtTime(freq * 3.0, now);
+            gain3.gain.setValueAtTime(0.22, now);
+            gain3.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+            osc3.connect(gain3);
+            gain3.connect(ctx.destination);
+            osc3.start(now);
+            osc3.stop(now + 0.070);
+
+            // Soft felt hammer attack
+            const hammer = ctx.createOscillator();
+            const hammerGain = ctx.createGain();
+            hammer.type = 'triangle';
+            hammer.frequency.setValueAtTime(Math.min(freq * 1.5, 350), now);
+            hammerGain.gain.setValueAtTime(0.22, now);
+            hammerGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
+            hammer.connect(hammerGain);
+            hammerGain.connect(ctx.destination);
+            hammer.start(now);
+            hammer.stop(now + 0.020);
+
+        } else if (currentProfile === 'marimba' || currentProfile === 'thock') {
             // Pure wooden chime / marimba note with rich harmonic overtones
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
