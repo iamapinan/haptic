@@ -5,7 +5,7 @@ use block::ConcreteBlock;
 use core_foundation::base::TCFType;
 use core_foundation::boolean::CFBoolean;
 use core_foundation::dictionary::CFDictionary;
-use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoopAddSource, CFRunLoopGetMain};
+use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoopAddSource, CFRunLoopGetMain, CFRunLoopWakeUp};
 use core_foundation::string::CFString;
 use objc::{class, msg_send, sel, sel_impl};
 use std::ffi::c_void;
@@ -353,7 +353,7 @@ unsafe extern "C" fn cg_keyboard_callback(
 
 /// Sets up system-wide NSEvent monitors for gestures/mouse + IOHIDManager & CGEventTap for keyboard
 pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
-    let is_trusted = is_accessibility_trusted(false);
+    let is_trusted = is_accessibility_trusted(true);
     println!("[Haptic] Startup accessibility trusted status: {}", is_trusted);
 
     let raw_config = Arc::into_raw(Arc::clone(&config)) as *mut c_void;
@@ -423,6 +423,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
                             );
                             CFRunLoopAddSource(main_run_loop, loop_source, kCFRunLoopCommonModes);
                             CGEventTapEnable(tap, true);
+                            CFRunLoopWakeUp(main_run_loop);
                             println!("[Haptic Supervisor] CGEventTap hooked successfully into Main RunLoop!");
                         }
                     }
