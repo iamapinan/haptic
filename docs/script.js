@@ -273,18 +273,16 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
             hammer.stop(now + 0.030);
 
         } else if (currentProfile === 'drum') {
-            // Classic Vintage Acoustic Drum Kit Web Audio Synthesizer
+            // Calibrated Acoustic Drum Kit Web Audio Synthesizer (Reference Standard Frequencies)
             const char = (keyVal || 'a').toLowerCase();
             const kCode = code || '';
 
-            // 1. Classic Bass Drum / Kick (Spacebar, Enter, B, V, N, C, Z, X)
-            // Warm 22" maple shell with vintage felt beater thud
+            // 1. Bass Drum / Kick – Exactly 114 Hz (Spacebar, Enter, B, V, N, C, Z, X)
             if (keyVal === ' ' || kCode === 'Space' || keyVal === 'Enter' || kCode === 'Enter' || ['b', 'v', 'n', 'c', 'z', 'x'].includes(char)) {
                 const kick = ctx.createOscillator();
                 const kickGain = ctx.createGain();
                 kick.type = 'sine';
-                kick.frequency.setValueAtTime(104, now);
-                kick.frequency.exponentialRampToValueAtTime(48, now + 0.08);
+                kick.frequency.setValueAtTime(114, now);
                 kickGain.gain.setValueAtTime(0.95, now);
                 kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.240);
                 kick.connect(kickGain);
@@ -292,79 +290,60 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 kick.start(now);
                 kick.stop(now + 0.245);
 
-                // Warm felt thud
-                const thud = ctx.createOscillator();
-                const thudGain = ctx.createGain();
-                thud.type = 'triangle';
-                thud.frequency.setValueAtTime(140, now);
-                thudGain.gain.setValueAtTime(0.45, now);
-                thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
-                thud.connect(thudGain);
-                thudGain.connect(ctx.destination);
-                thud.start(now);
-                thud.stop(now + 0.050);
+                const sub = ctx.createOscillator();
+                const subGain = ctx.createGain();
+                sub.type = 'sine';
+                sub.frequency.setValueAtTime(57, now);
+                subGain.gain.setValueAtTime(0.50, now);
+                subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.180);
+                sub.connect(subGain);
+                subGain.connect(ctx.destination);
+                sub.start(now);
+                sub.stop(now + 0.185);
 
-            // 2. Classic 14" Wooden Snare Drum (J, F, D, K, S, L, A, ;, ')
-            // Crisp pop crack + under-snare wire sizzle
+                // Beater click
+                const click = ctx.createOscillator();
+                const clickGain = ctx.createGain();
+                click.type = 'triangle';
+                click.frequency.setValueAtTime(2200, now);
+                clickGain.gain.setValueAtTime(0.30, now);
+                clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+                click.connect(clickGain);
+                clickGain.connect(ctx.destination);
+                click.start(now);
+                click.stop(now + 0.020);
+
+            // 2. Snare Drum – Exactly 218 Hz (J, F, D, K, S, L, A, ;, ')
             } else if (['j', 'f', 'd', 'k', 's', 'l', 'a', ';', "'"].includes(char)) {
                 const shell = ctx.createOscillator();
                 const shellGain = ctx.createGain();
                 shell.type = 'triangle';
-                shell.frequency.setValueAtTime(230, now);
-                shell.frequency.exponentialRampToValueAtTime(165, now + 0.05);
-                shellGain.gain.setValueAtTime(0.60, now);
-                shellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.190);
+                shell.frequency.setValueAtTime(218, now);
+                shellGain.gain.setValueAtTime(0.65, now);
+                shellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.200);
                 shell.connect(shellGain);
                 shellGain.connect(ctx.destination);
                 shell.start(now);
-                shell.stop(now + 0.195);
+                shell.stop(now + 0.205);
 
                 // Snare wire rattle
                 const rattle = ctx.createOscillator();
                 const rattleGain = ctx.createGain();
                 rattle.type = 'sawtooth';
                 rattle.frequency.setValueAtTime(3400, now);
-                rattleGain.gain.setValueAtTime(0.55, now);
+                rattleGain.gain.setValueAtTime(0.65, now);
                 rattleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.140);
                 rattle.connect(rattleGain);
                 rattleGain.connect(ctx.destination);
                 rattle.start(now);
                 rattle.stop(now + 0.145);
 
-            // 3. Classic 14" Closed Hi-Hat (H, G, E, R, I, O)
-            } else if (['h', 'g', 'e', 'r', 'i', 'o'].includes(char)) {
-                const hat = ctx.createOscillator();
-                const hatGain = ctx.createGain();
-                hat.type = 'sawtooth';
-                hat.frequency.setValueAtTime(8400, now);
-                hatGain.gain.setValueAtTime(0.60, now);
-                hatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
-                hat.connect(hatGain);
-                hatGain.connect(ctx.destination);
-                hat.start(now);
-                hat.stop(now + 0.060);
-
-            // 4. Classic Open Hi-Hat (T, Y, U, W)
-            } else if (['t', 'y', 'u', 'w'].includes(char)) {
-                const openHat = ctx.createOscillator();
-                const openHatGain = ctx.createGain();
-                openHat.type = 'sawtooth';
-                openHat.frequency.setValueAtTime(7800, now);
-                openHatGain.gain.setValueAtTime(0.65, now);
-                openHatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.200);
-                openHat.connect(openHatGain);
-                openHatGain.connect(ctx.destination);
-                openHat.start(now);
-                openHat.stop(now + 0.205);
-
-            // 5. Classic Tuned Rack Toms (Roll Fills: 4, 5, 6, 7, Q, P)
-            } else if (['4', '5', '6', '7', 'q', 'p'].includes(char)) {
+            // 3. Tom 1 (High Tom) – Exactly 150 Hz (4, Q, E)
+            } else if (['4', 'q', 'e'].includes(char)) {
                 const tom = ctx.createOscillator();
                 const tomGain = ctx.createGain();
-                const tomFreq = ['4', 'q'].includes(char) ? 196 : (['5', 'p'].includes(char) ? 164.8 : 146.8);
                 tom.type = 'sine';
-                tom.frequency.setValueAtTime(tomFreq * 1.3, now);
-                tom.frequency.exponentialRampToValueAtTime(tomFreq, now + 0.07);
+                tom.frequency.setValueAtTime(150, now);
                 tomGain.gain.setValueAtTime(0.85, now);
                 tomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.220);
                 tom.connect(tomGain);
@@ -372,26 +351,121 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 tom.start(now);
                 tom.stop(now + 0.225);
 
-            // 6. Classic 16" Deep Floor Tom (1, 2, 3, 8, 9, 0, -, =)
-            } else if (['1', '2', '3', '8', '9', '0', '-', '='].includes(char)) {
+                const h2 = ctx.createOscillator();
+                const h2Gain = ctx.createGain();
+                h2.type = 'sine';
+                h2.frequency.setValueAtTime(300, now);
+                h2Gain.gain.setValueAtTime(0.30, now);
+                h2Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.150);
+                h2.connect(h2Gain);
+                h2Gain.connect(ctx.destination);
+                h2.start(now);
+                h2.stop(now + 0.155);
+
+            // 4. Tom 2 (Mid Tom) – Exactly 128 Hz (5, 6, W, R)
+            } else if (['5', '6', 'w', 'r'].includes(char)) {
+                const tom = ctx.createOscillator();
+                const tomGain = ctx.createGain();
+                tom.type = 'sine';
+                tom.frequency.setValueAtTime(128, now);
+                tomGain.gain.setValueAtTime(0.85, now);
+                tomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.220);
+                tom.connect(tomGain);
+                tomGain.connect(ctx.destination);
+                tom.start(now);
+                tom.stop(now + 0.225);
+
+                const h2 = ctx.createOscillator();
+                const h2Gain = ctx.createGain();
+                h2.type = 'sine';
+                h2.frequency.setValueAtTime(256, now);
+                h2Gain.gain.setValueAtTime(0.30, now);
+                h2Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.150);
+                h2.connect(h2Gain);
+                h2Gain.connect(ctx.destination);
+                h2.start(now);
+                h2.stop(now + 0.155);
+
+            // 5. Tom 3 (Low Tom) – Exactly 87 Hz (7, 8, U, I)
+            } else if (['7', '8', 'u', 'i'].includes(char)) {
+                const tom = ctx.createOscillator();
+                const tomGain = ctx.createGain();
+                tom.type = 'sine';
+                tom.frequency.setValueAtTime(87, now);
+                tomGain.gain.setValueAtTime(0.88, now);
+                tomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.220);
+                tom.connect(tomGain);
+                tomGain.connect(ctx.destination);
+                tom.start(now);
+                tom.stop(now + 0.225);
+
+                const h2 = ctx.createOscillator();
+                const h2Gain = ctx.createGain();
+                h2.type = 'sine';
+                h2.frequency.setValueAtTime(174, now);
+                h2Gain.gain.setValueAtTime(0.35, now);
+                h2Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.160);
+                h2.connect(h2Gain);
+                h2Gain.connect(ctx.destination);
+                h2.start(now);
+                h2.stop(now + 0.165);
+
+            // 6. Floor Tom 4 – Exactly 65 Hz (1, 2, 3, 9, 0, -, =)
+            } else if (['1', '2', '3', '9', '0', '-', '='].includes(char)) {
                 const floor = ctx.createOscillator();
                 const floorGain = ctx.createGain();
                 floor.type = 'sine';
-                floor.frequency.setValueAtTime(115, now);
-                floor.frequency.exponentialRampToValueAtTime(62, now + 0.12);
-                floorGain.gain.setValueAtTime(0.85, now);
+                floor.frequency.setValueAtTime(65, now);
+                floorGain.gain.setValueAtTime(0.92, now);
                 floorGain.gain.exponentialRampToValueAtTime(0.001, now + 0.280);
                 floor.connect(floorGain);
                 floorGain.connect(ctx.destination);
                 floor.start(now);
                 floor.stop(now + 0.285);
 
-            // 7. Crash Cymbal (Accents: Tab, Escape, [, ])
+                const h2 = ctx.createOscillator();
+                const h2Gain = ctx.createGain();
+                h2.type = 'sine';
+                h2.frequency.setValueAtTime(130, now);
+                h2Gain.gain.setValueAtTime(0.38, now);
+                h2Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.180);
+                h2.connect(h2Gain);
+                h2Gain.connect(ctx.destination);
+                h2.start(now);
+                h2.stop(now + 0.185);
+
+            // 7. Closed Hi-Hat (H, G, O, P)
+            } else if (['h', 'g', 'o', 'p'].includes(char)) {
+                const hat = ctx.createOscillator();
+                const hatGain = ctx.createGain();
+                hat.type = 'sawtooth';
+                hat.frequency.setValueAtTime(8400, now);
+                hatGain.gain.setValueAtTime(0.65, now);
+                hatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+                hat.connect(hatGain);
+                hatGain.connect(ctx.destination);
+                hat.start(now);
+                hat.stop(now + 0.060);
+
+            // 8. Open Hi-Hat (T, Y)
+            } else if (['t', 'y'].includes(char)) {
+                const openHat = ctx.createOscillator();
+                const openHatGain = ctx.createGain();
+                openHat.type = 'sawtooth';
+                openHat.frequency.setValueAtTime(7800, now);
+                openHatGain.gain.setValueAtTime(0.65, now);
+                openHatGain.exponentialRampToValueAtTime(0.001, now + 0.200);
+                openHat.connect(openHatGain);
+                openHatGain.connect(ctx.destination);
+                openHat.start(now);
+                openHat.stop(now + 0.205);
+
+            // 9. Crash Cymbal (Accents: Tab, Escape, [, ])
             } else if (['tab', 'escape', '[', ']'].includes(char) || kCode === 'Tab' || kCode === 'Escape') {
                 const crash = ctx.createOscillator();
                 const crashGain = ctx.createGain();
                 crash.type = 'sawtooth';
-                crash.frequency.setValueAtTime(6800, now);
+                crash.frequency.setValueAtTime(5800, now);
                 crashGain.gain.setValueAtTime(0.75, now);
                 crashGain.gain.exponentialRampToValueAtTime(0.001, now + 0.420);
                 crash.connect(crashGain);
@@ -399,13 +473,13 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 crash.start(now);
                 crash.stop(now + 0.425);
 
-            // 8. Ride Cymbal (Rhythm Timekeeping & Bell: Backspace, \, Arrow Keys)
+            // 10. Ride Cymbal (Rhythm Timekeeping & Bell: Backspace, \, Arrow Keys)
             } else if (['backspace', '\\'].includes(char) || kCode === 'Backspace' || kCode.startsWith('Arrow')) {
                 const bell = ctx.createOscillator();
                 const bellGain = ctx.createGain();
                 bell.type = 'sine';
-                bell.frequency.setValueAtTime(780, now);
-                bellGain.gain.setValueAtTime(0.45, now);
+                bell.frequency.setValueAtTime(680, now);
+                bellGain.gain.setValueAtTime(0.50, now);
                 bellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.150);
                 bell.connect(bellGain);
                 bellGain.connect(ctx.destination);
@@ -415,15 +489,15 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 const ride = ctx.createOscillator();
                 const rideGain = ctx.createGain();
                 ride.type = 'sawtooth';
-                ride.frequency.setValueAtTime(8700, now);
-                rideGain.gain.setValueAtTime(0.45, now);
+                ride.frequency.setValueAtTime(4200, now);
+                rideGain.gain.setValueAtTime(0.40, now);
                 rideGain.gain.exponentialRampToValueAtTime(0.001, now + 0.450);
                 ride.connect(rideGain);
                 rideGain.connect(ctx.destination);
                 ride.start(now);
                 ride.stop(now + 0.455);
 
-            // 9. Cowbell & Extra Percussion
+            // 11. Cowbell & Extra Percussion
             } else {
                 const cow = ctx.createOscillator();
                 const cowGain = ctx.createGain();

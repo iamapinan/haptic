@@ -238,36 +238,58 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
                 (strike + fundamental + h2 + h3 + h4 + h5 + body) * vol_multiplier
             }
             SoundProfile::DrumKit => {
-                // Classic Vintage Acoustic Drum Kit Synthesizer (Warm Wooden Shells & Bronze Cymbals)
+                // Calibrated Acoustic Drum Kit (Reference Standard Frequencies)
                 let mut rng = 0x12345678u32 ^ (key_code as u32 + 1).wrapping_mul(2654435761);
                 let mut white_noise = || -> f64 {
                     rng = rng.wrapping_mul(1664525).wrapping_add(1013904223);
                     ((rng >> 16) as f64 / 32768.0) - 1.0
                 };
 
-                // 1. Classic Bass Drum / Kick (Spacebar, Enter, B, V, N, C, Z, X)
-                // Warm, round 22" maple shell with vintage felt beater thud
+                // 1. Bass Drum / Kick – Exactly 114 Hz (Spacebar, Enter, B, V, N, C, Z, X)
                 if key_code == 49 || key_code == 36 || key_code == 11 || key_code == 9 || key_code == 45 || key_code == 8 || key_code == 6 || key_code == 7 {
-                    let pitch_glide = 48.0 * t + (56.0 / 38.0) * (1.0 - (-t * 38.0).exp());
-                    let shell_body = (2.0 * std::f64::consts::PI * pitch_glide).sin() * (-t * 14.0).exp() * 0.95;
-                    let felt_thud = (2.0 * std::f64::consts::PI * 140.0 * t).sin() * (-t * 45.0).exp() * 0.45;
-                    let air_puff = (2.0 * std::f64::consts::PI * 65.0 * t).sin() * (-t * 18.0).exp() * 0.40;
-                    let beater_snap = (2.0 * std::f64::consts::PI * 1800.0 * t).sin() * (-t * 260.0).exp() * 0.25;
-                    (shell_body + felt_thud + air_puff + beater_snap) * vol_multiplier
+                    let fundamental = (2.0 * std::f64::consts::PI * 114.0 * t).sin() * (-t * 14.0).exp() * 0.95;
+                    let sub_punch = (2.0 * std::f64::consts::PI * 57.0 * t).sin() * (-t * 18.0).exp() * 0.50;
+                    let beater_click = (2.0 * std::f64::consts::PI * 2200.0 * t).sin() * (-t * 260.0).exp() * 0.30;
+                    (fundamental + sub_punch + beater_click) * vol_multiplier
                 }
-                // 2. Classic 14" Wooden Snare Drum with Crisp Snare Wires (J, F, D, K, S, L, A, ;, ')
-                // Crisp pop crack + coated head rimshot + under-snare wire sizzle
+                // 2. Snare Drum – Exactly 218 Hz (J, F, D, K, S, L, A, ;, ')
                 else if key_code == 38 || key_code == 3 || key_code == 2 || key_code == 40 || key_code == 1 || key_code == 37 || key_code == 0 || key_code == 41 || key_code == 39 {
-                    let pitch_glide = 165.0 * t + (65.0 / 40.0) * (1.0 - (-t * 40.0).exp());
-                    let wood_shell = (2.0 * std::f64::consts::PI * pitch_glide).sin() * (-t * 24.0).exp() * 0.60;
-                    let rim_crack = (2.0 * std::f64::consts::PI * 780.0 * t).sin() * (-t * 160.0).exp() * 0.45;
+                    let fundamental = (2.0 * std::f64::consts::PI * 218.0 * t).sin() * (-t * 22.0).exp() * 0.65;
+                    let stick_impact = (2.0 * std::f64::consts::PI * 850.0 * t).sin() * (-t * 160.0).exp() * 0.40;
                     let n = white_noise();
                     let snare_wires = (n * 0.70 + (2.0 * std::f64::consts::PI * 3400.0 * t).sin() * 0.30) * (-t * 28.0).exp() * 0.65;
-                    (wood_shell + rim_crack + snare_wires) * vol_multiplier
+                    (fundamental + stick_impact + snare_wires) * vol_multiplier
                 }
-                // 3. Classic 14" Closed Hi-Hat (H, G, E, R, I, O)
-                // Crisp, dry bronze pedal chick
-                else if key_code == 4 || key_code == 5 || key_code == 14 || key_code == 15 || key_code == 34 || key_code == 31 {
+                // 3. Tom 1 (High Tom) – Exactly 150 Hz (4, Q, E)
+                else if key_code == 21 || key_code == 12 || key_code == 14 {
+                    let fundamental = (2.0 * std::f64::consts::PI * 150.0 * t).sin() * (-t * 15.0).exp() * 0.85;
+                    let h2 = (2.0 * std::f64::consts::PI * 300.0 * t).sin() * (-t * 22.0).exp() * 0.30;
+                    let stick = (2.0 * std::f64::consts::PI * 580.0 * t).sin() * (-t * 150.0).exp() * 0.35;
+                    (fundamental + h2 + stick) * vol_multiplier
+                }
+                // 4. Tom 2 (Mid Tom) – Exactly 128 Hz (5, 6, W, R)
+                else if key_code == 23 || key_code == 22 || key_code == 13 || key_code == 15 {
+                    let fundamental = (2.0 * std::f64::consts::PI * 128.0 * t).sin() * (-t * 14.0).exp() * 0.85;
+                    let h2 = (2.0 * std::f64::consts::PI * 256.0 * t).sin() * (-t * 20.0).exp() * 0.30;
+                    let stick = (2.0 * std::f64::consts::PI * 500.0 * t).sin() * (-t * 150.0).exp() * 0.35;
+                    (fundamental + h2 + stick) * vol_multiplier
+                }
+                // 5. Tom 3 (Low Tom) – Exactly 87 Hz (7, 8, U, I)
+                else if key_code == 26 || key_code == 28 || key_code == 32 || key_code == 34 {
+                    let fundamental = (2.0 * std::f64::consts::PI * 87.0 * t).sin() * (-t * 12.0).exp() * 0.88;
+                    let h2 = (2.0 * std::f64::consts::PI * 174.0 * t).sin() * (-t * 18.0).exp() * 0.35;
+                    let stick = (2.0 * std::f64::consts::PI * 380.0 * t).sin() * (-t * 140.0).exp() * 0.35;
+                    (fundamental + h2 + stick) * vol_multiplier
+                }
+                // 6. Floor Tom 4 – Exactly 65 Hz (1, 2, 3, 9, 0, -, =)
+                else if key_code == 18 || key_code == 19 || key_code == 20 || key_code == 25 || key_code == 29 || key_code == 27 || key_code == 24 {
+                    let fundamental = (2.0 * std::f64::consts::PI * 65.0 * t).sin() * (-t * 10.0).exp() * 0.92;
+                    let h2 = (2.0 * std::f64::consts::PI * 130.0 * t).sin() * (-t * 16.0).exp() * 0.38;
+                    let thump = (2.0 * std::f64::consts::PI * 280.0 * t).sin() * (-t * 120.0).exp() * 0.35;
+                    (fundamental + h2 + thump) * vol_multiplier
+                }
+                // 7. Closed Hi-Hat (H, G, O, P)
+                else if key_code == 4 || key_code == 5 || key_code == 31 || key_code == 35 {
                     let n = white_noise();
                     let b1 = (2.0 * std::f64::consts::PI * 5600.0 * t).sin();
                     let b2 = (2.0 * std::f64::consts::PI * 8400.0 * t).sin();
@@ -275,9 +297,8 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
                     let hat = (b1 * 0.25 + b2 * 0.30 + b3 * 0.25 + n * 0.40) * (-t * 110.0).exp() * 0.65;
                     hat * vol_multiplier
                 }
-                // 4. Classic Open Hi-Hat (T, Y, U, W)
-                // Warm, shimmering bronze sizzle
-                else if key_code == 17 || key_code == 16 || key_code == 32 || key_code == 13 {
+                // 8. Open Hi-Hat (T, Y)
+                else if key_code == 17 || key_code == 16 {
                     let n = white_noise();
                     let b1 = (2.0 * std::f64::consts::PI * 5200.0 * t).sin();
                     let b2 = (2.0 * std::f64::consts::PI * 7800.0 * t).sin();
@@ -285,27 +306,7 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
                     let open_hat = (b1 * 0.25 + b2 * 0.30 + b3 * 0.25 + n * 0.40) * (-t * 18.0).exp() * 0.65;
                     open_hat * vol_multiplier
                 }
-                // 5. Classic Tuned Rack Toms (Roll Fills: 4, 5, 6, 7, Q, P)
-                // Singing round melodic maple shell tones (High Tom 196Hz G3, Mid Tom 147Hz D3)
-                else if key_code == 21 || key_code == 23 || key_code == 22 || key_code == 26 || key_code == 12 || key_code == 35 {
-                    let base_freq = if key_code == 21 || key_code == 12 { 196.0 } else if key_code == 23 || key_code == 35 { 164.8 } else { 146.8 };
-                    let pitch_glide = (base_freq * 0.85) * t + (base_freq * 0.30 / 28.0) * (1.0 - (-t * 28.0).exp());
-                    let skin = (2.0 * std::f64::consts::PI * pitch_glide).sin() * (-t * 16.0).exp() * 0.85;
-                    let overtone = (2.0 * std::f64::consts::PI * (base_freq * 1.85) * t).sin() * (-t * 24.0).exp() * 0.30;
-                    let stick = (2.0 * std::f64::consts::PI * 520.0 * t).sin() * (-t * 160.0).exp() * 0.35;
-                    (skin + overtone + stick) * vol_multiplier
-                }
-                // 6. Classic 16" Deep Floor Tom (1, 2, 3, 8, 9, 0, -, =)
-                // Deep resonant low-end boom (98Hz G2)
-                else if key_code == 18 || key_code == 19 || key_code == 20 || key_code == 28 || key_code == 25 || key_code == 29 || key_code == 27 || key_code == 24 {
-                    let pitch_glide = 75.0 * t + (35.0 / 22.0) * (1.0 - (-t * 22.0).exp());
-                    let deep_boom = (2.0 * std::f64::consts::PI * pitch_glide).sin() * (-t * 12.0).exp() * 0.90;
-                    let shell_resonance = (2.0 * std::f64::consts::PI * 98.0 * t).sin() * (-t * 16.0).exp() * 0.40;
-                    let thump = (2.0 * std::f64::consts::PI * 340.0 * t).sin() * (-t * 140.0).exp() * 0.35;
-                    (deep_boom + shell_resonance + thump) * vol_multiplier
-                }
-                // 7. Classic 18" Vintage Crash Cymbal (Tab, Escape, [, ])
-                // Explosive splash + wide warm bronze wash
+                // 9. Crash Cymbal (Tab, Escape, [, ])
                 else if key_code == 48 || key_code == 53 || key_code == 33 || key_code == 30 {
                     let n = white_noise();
                     let b1 = (2.0 * std::f64::consts::PI * 3600.0 * t).sin();
@@ -315,8 +316,7 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
                     let crash = (b1 * 0.20 + b2 * 0.25 + b3 * 0.25 + b4 * 0.20 + n * 0.45) * (-t * 6.5).exp() * 0.75;
                     crash * vol_multiplier
                 }
-                // 8. Classic 20" Ride Cymbal with Bell Ping (Backspace, \, Arrow Keys)
-                // Clear wooden stick ping on cymbal bell + sustaining dark bronze body
+                // 10. Ride Cymbal with Bell Ping (Backspace, \, Arrow Keys)
                 else if key_code == 51 || key_code == 42 || key_code == 123 || key_code == 124 || key_code == 125 || key_code == 126 {
                     let bell_ping = (2.0 * std::f64::consts::PI * 680.0 * t).sin() * (-t * 35.0).exp() * 0.50;
                     let bronze_high = (2.0 * std::f64::consts::PI * 4200.0 * t).sin() * (-t * 14.0).exp() * 0.35;
@@ -324,7 +324,7 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
                     let ride_wash = (bronze_high * 0.45 + n * 0.25) * (-t * 5.5).exp() * 0.40;
                     (bell_ping + bronze_high + ride_wash) * vol_multiplier
                 }
-                // 9. Classic Percussion / Cowbell for remaining keys
+                // 11. Other keys: Cowbell
                 else {
                     let cow1 = (2.0 * std::f64::consts::PI * 560.0 * t).sin();
                     let cow2 = (2.0 * std::f64::consts::PI * 845.0 * t).sin();
