@@ -241,6 +241,88 @@ pub fn play_haptic_audio_tick(pattern: HapticPattern) {
     }
 }
 
+/// Returns a unique, harmonious musical pitch multiplier (speed) for every key on the keyboard
+pub fn get_key_pitch(key_code: u16) -> f32 {
+    match key_code {
+        // Spacebar - Deepest resonance
+        49 => 0.74,
+
+        // Return / Enter - Deep resonant thock
+        36 => 0.82,
+
+        // Backspace / Delete
+        51 => 0.88,
+
+        // Tab
+        48 => 0.92,
+
+        // Escape
+        53 => 1.36,
+
+        // Bottom Row (Z, X, C, V, B, N, M, ,, ., /)
+        6 => 0.84,  // Z
+        7 => 0.87,  // X
+        8 => 0.90,  // C
+        9 => 0.93,  // V
+        11 => 0.96, // B
+        45 => 0.99, // N
+        46 => 1.02, // M
+        43 => 1.05, // ,
+        47 => 1.08, // .
+        44 => 1.11, // /
+
+        // Home Row (A, S, D, F, G, H, J, K, L, ;, ')
+        0 => 0.95,  // A
+        1 => 0.98,  // S
+        2 => 1.01,  // D
+        3 => 1.05,  // F
+        5 => 1.09,  // G
+        4 => 1.13,  // H
+        38 => 1.17, // J
+        40 => 1.21, // K
+        37 => 1.25, // L
+        41 => 1.28, // ;
+        39 => 1.31, // '
+
+        // Top Row (Q, W, E, R, T, Y, U, I, O, P, [, ])
+        12 => 1.08, // Q
+        13 => 1.11, // W
+        14 => 1.15, // E
+        15 => 1.18, // R
+        17 => 1.22, // T
+        16 => 1.25, // Y
+        32 => 1.29, // U
+        34 => 1.33, // I
+        31 => 1.37, // O
+        35 => 1.41, // P
+        33 => 1.44, // [
+        30 => 1.48, // ]
+
+        // Number Row (1, 2, 3, 4, 5, 6, 7, 8, 9, 0, -, =)
+        18 => 1.20, // 1
+        19 => 1.23, // 2
+        20 => 1.27, // 3
+        21 => 1.30, // 4
+        23 => 1.34, // 5
+        22 => 1.37, // 6
+        26 => 1.41, // 7
+        28 => 1.45, // 8
+        25 => 1.48, // 9
+        29 => 1.52, // 0
+        27 => 1.55, // -
+        24 => 1.58, // =
+
+        // Arrow keys
+        123 => 0.90, // Left
+        124 => 1.10, // Right
+        125 => 0.85, // Down
+        126 => 1.20, // Up
+
+        // Fallback for any other modifier or special key: stable musical distribution
+        other => 0.85 + (((other as usize * 137 + 41) % 30) as f32 * 0.017),
+    }
+}
+
 /// Plays a mechanical key sound effect directly to the CoreAudio default device
 pub fn play_keyboard_sound(key_code: u16, profile: SoundProfile, volume_pct: u8) {
     if volume_pct == 0 {
@@ -266,10 +348,13 @@ pub fn play_keyboard_sound(key_code: u16, profile: SoundProfile, volume_pct: u8)
         };
 
         let wav = &engine.keyboard_wavs[profile_idx][key_type];
+        let pitch = get_key_pitch(key_code);
+
         if let Ok(sink) = Sink::try_new(&engine.stream_handle) {
             // Precise linear volume scaling: 0.0 to 1.0
             let vol_float = (volume_pct as f32 / 100.0).clamp(0.0, 1.0);
             sink.set_volume(vol_float);
+            sink.set_speed(pitch);
 
             if let Ok(source) = Decoder::new(Cursor::new(wav.clone())) {
                 sink.append(source);

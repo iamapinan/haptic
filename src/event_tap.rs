@@ -235,6 +235,62 @@ fn trigger_keyboard_sound(key_code: u16, config: &AppConfig) {
     play_keyboard_sound(key_code, profile, vol);
 }
 
+fn hid_usage_to_macos_keycode(usage: u32) -> u16 {
+    match usage {
+        0x04 => 0,   // A
+        0x05 => 11,  // B
+        0x06 => 8,   // C
+        0x07 => 2,   // D
+        0x08 => 14,  // E
+        0x09 => 3,   // F
+        0x0A => 5,   // G
+        0x0B => 4,   // H
+        0x0C => 34,  // I
+        0x0D => 38,  // J
+        0x0E => 40,  // K
+        0x0F => 37,  // L
+        0x10 => 46,  // M
+        0x11 => 45,  // N
+        0x12 => 31,  // O
+        0x13 => 35,  // P
+        0x14 => 12,  // Q
+        0x15 => 15,  // R
+        0x16 => 1,   // S
+        0x17 => 17,  // T
+        0x18 => 32,  // U
+        0x19 => 9,   // V
+        0x1A => 13,  // W
+        0x1B => 7,   // X
+        0x1C => 16,  // Y
+        0x1D => 6,   // Z
+        0x1E => 18,  // 1
+        0x1F => 19,  // 2
+        0x20 => 20,  // 3
+        0x21 => 21,  // 4
+        0x22 => 23,  // 5
+        0x23 => 22,  // 6
+        0x24 => 26,  // 7
+        0x25 => 28,  // 8
+        0x26 => 25,  // 9
+        0x27 => 29,  // 0
+        0x28 => 36,  // Return
+        0x29 => 53,  // Escape
+        0x2A => 51,  // Backspace
+        0x2B => 48,  // Tab
+        0x2C => 49,  // Space
+        0x2D => 27,  // -
+        0x2E => 24,  // =
+        0x2F => 33,  // [
+        0x30 => 30,  // ]
+        0x33 => 41,  // ;
+        0x34 => 39,  // '
+        0x36 => 43,  // ,
+        0x37 => 47,  // .
+        0x38 => 44,  // /
+        other => other as u16,
+    }
+}
+
 unsafe extern "C" fn hid_keyboard_callback(
     context: *mut c_void,
     _result: i32,
@@ -256,8 +312,9 @@ unsafe extern "C" fn hid_keyboard_callback(
     // 0x07 = kHIDPage_KeyboardOrKeypad, int_val == 1 is KeyDown
     if page == 0x07 && int_val == 1 {
         let usage = IOHIDElementGetUsage(elem);
+        let key_code = hid_usage_to_macos_keycode(usage);
         let config = &*(context as *const AppConfig);
-        trigger_keyboard_sound(usage as u16, config);
+        trigger_keyboard_sound(key_code, config);
     }
 }
 

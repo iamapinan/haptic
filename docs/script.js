@@ -171,18 +171,41 @@ let currentProfile = 'thock';
 let currentIntensity = 'generic';
 let pulseCount = 0;
 
+function getKeyPitch(keyVal, code) {
+    if (keyVal === ' ' || code === 'Space') return 0.74;
+    if (keyVal === 'Enter' || code === 'Enter') return 0.82;
+    if (keyVal === 'Backspace' || code === 'Backspace') return 0.88;
+    if (keyVal === 'Tab' || code === 'Tab') return 0.92;
+    if (keyVal === 'Escape' || code === 'Escape') return 1.36;
+
+    const char = (keyVal || 'a').toLowerCase();
+    const rowMap = {
+        'z': 0.84, 'x': 0.87, 'c': 0.90, 'v': 0.93, 'b': 0.96, 'n': 0.99, 'm': 1.02, ',': 1.05, '.': 1.08, '/': 1.11,
+        'a': 0.95, 's': 0.98, 'd': 1.01, 'f': 1.05, 'g': 1.09, 'h': 1.13, 'j': 1.17, 'k': 1.21, 'l': 1.25, ';': 1.28, "'": 1.31,
+        'q': 1.08, 'w': 1.11, 'e': 1.15, 'r': 1.18, 't': 1.22, 'y': 1.25, 'u': 1.29, 'i': 1.33, 'o': 1.37, 'p': 1.41, '[': 1.44, ']': 1.48,
+        '1': 1.20, '2': 1.23, '3': 1.27, '4': 1.30, '5': 1.34, '6': 1.37, '7': 1.41, '8': 1.45, '9': 1.48, '0': 1.52, '-': 1.55, '=': 1.58
+    };
+
+    if (rowMap[char]) return rowMap[char];
+    const charCode = char.charCodeAt(0) || 65;
+    return 0.85 + ((charCode * 137 + 41) % 30) * 0.017;
+}
+
 // Synthesize Mechanical Switch Sound in Web Audio API
-function playMechanicalKeySound(keyType = 'normal') {
+function playMechanicalKeySound(keyVal = 'a', code = '') {
     try {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
+        const pitch = getKeyPitch(keyVal, code);
+        const isSpace = keyVal === ' ' || code === 'Space';
+        const isEnter = keyVal === 'Enter' || keyVal === 'Backspace' || code === 'Enter' || code === 'Backspace';
 
         if (currentProfile === 'thock') {
             // Cream / Holy Panda Deep Thock
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             
-            const baseFreq = keyType === 'space' ? 150 : keyType === 'enter' ? 230 : 370;
+            const baseFreq = (isSpace ? 150 : isEnter ? 230 : 370) * pitch;
             osc.type = 'sine';
             osc.frequency.setValueAtTime(baseFreq * 1.8, now);
             osc.frequency.exponentialRampToValueAtTime(baseFreq, now + 0.015);
@@ -207,7 +230,7 @@ function playMechanicalKeySound(keyType = 'normal') {
             noise.buffer = buffer;
             const noiseFilter = ctx.createBiquadFilter();
             noiseFilter.type = 'lowpass';
-            noiseFilter.frequency.value = 1200;
+            noiseFilter.frequency.value = 1200 * pitch;
 
             const noiseGain = ctx.createGain();
             noiseGain.gain.setValueAtTime(0.20, now);
@@ -226,8 +249,8 @@ function playMechanicalKeySound(keyType = 'normal') {
             const gain = ctx.createGain();
 
             osc.type = 'triangle';
-            osc.frequency.setValueAtTime(3600, now);
-            osc.frequency.exponentialRampToValueAtTime(800, now + 0.02);
+            osc.frequency.setValueAtTime(3600 * pitch, now);
+            osc.frequency.exponentialRampToValueAtTime(800 * pitch, now + 0.02);
 
             gain.gain.setValueAtTime(0.65, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
@@ -242,7 +265,7 @@ function playMechanicalKeySound(keyType = 'normal') {
             const snap = ctx.createOscillator();
             const snapGain = ctx.createGain();
             snap.type = 'sine';
-            snap.frequency.setValueAtTime(6000, now);
+            snap.frequency.setValueAtTime(6000 * pitch, now);
             snapGain.gain.setValueAtTime(0.3, now);
             snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.008);
             snap.connect(snapGain);
@@ -254,7 +277,7 @@ function playMechanicalKeySound(keyType = 'normal') {
             // Vintage Typewriter
             const strike = ctx.createOscillator();
             const strikeGain = ctx.createGain();
-            const strikeFreq = keyType === 'space' ? 220 : 480;
+            const strikeFreq = (isSpace ? 220 : 480) * pitch;
 
             strike.type = 'triangle';
             strike.frequency.setValueAtTime(strikeFreq * 2, now);
@@ -271,7 +294,7 @@ function playMechanicalKeySound(keyType = 'normal') {
             const ring = ctx.createOscillator();
             const ringGain = ctx.createGain();
             ring.type = 'sine';
-            ring.frequency.setValueAtTime(2200, now);
+            ring.frequency.setValueAtTime(2200 * pitch, now);
             ringGain.gain.setValueAtTime(0.25, now);
             ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
             ring.connect(ringGain);
@@ -440,16 +463,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     demoInput.addEventListener('keydown', (e) => {
-        const keyType = e.key === ' ' ? 'space' : (e.key === 'Enter' || e.key === 'Backspace') ? 'enter' : 'normal';
-        playMechanicalKeySound(keyType);
+        playMechanicalKeySound(e.key, e.code);
         animateKey(e.key);
     });
 
     virtualKeys.forEach(k => {
         k.addEventListener('click', () => {
             const keyVal = k.getAttribute('data-key');
-            const keyType = keyVal === ' ' ? 'space' : (keyVal === 'Enter' || keyVal === 'Backspace') ? 'enter' : 'normal';
-            playMechanicalKeySound(keyType);
+            playMechanicalKeySound(keyVal, '');
             animateKey(keyVal);
 
             if (keyVal === 'Backspace') {
