@@ -447,10 +447,12 @@ extern "C" fn on_test_haptic(_this: &Object, _cmd: Sel, _sender: Id) {
 
 extern "C" fn on_check_accessibility(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
-        if is_accessibility_trusted(false) {
-            println!("[Haptic] Accessibility permission is already granted.");
-        } else {
-            let _ = is_accessibility_trusted(true);
+        let _ = is_accessibility_trusted(true);
+        unsafe {
+            let url_str = create_ns_string("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility");
+            let ns_url: Id = msg_send![class!(NSURL), URLWithString: url_str];
+            let workspace: Id = msg_send![class!(NSWorkspace), sharedWorkspace];
+            let () = msg_send![workspace, openURL: ns_url];
         }
     });
 }

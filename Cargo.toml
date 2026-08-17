@@ -15,3 +15,6 @@ rodio = "0.19"
 opt-level = 3
 lto = true
 strip = true
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(feature, values("cargo-clippy", "cargo_clippy"))'] }

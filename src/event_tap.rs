@@ -5,7 +5,7 @@ use block::ConcreteBlock;
 use core_foundation::base::TCFType;
 use core_foundation::boolean::CFBoolean;
 use core_foundation::dictionary::CFDictionary;
-use core_foundation::runloop::{kCFRunLoopCommonModes, kCFRunLoopDefaultMode, CFRunLoopAddSource, CFRunLoopGetMain};
+use core_foundation::runloop::{kCFRunLoopCommonModes, CFRunLoopAddSource, CFRunLoopGetMain};
 use core_foundation::string::CFString;
 use objc::{class, msg_send, sel, sel_impl};
 use std::ffi::c_void;
@@ -199,6 +199,12 @@ fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
                     state.last_haptic_time = now;
                 }
             }
+        }
+
+        // 6. Keyboard Key Down (NSEventTypeKeyDown = 10)
+        if event_type == 10 {
+            let key_code: u16 = msg_send![event, keyCode];
+            trigger_keyboard_sound(key_code, &state.config);
         }
     }
 }
@@ -408,7 +414,8 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
             | (1 << 22)
             | (1 << 18)
             | (1 << 30)
-            | (1 << 31);
+            | (1 << 31)
+            | (1 << 10);
 
         // Global Monitor
         let state_global = Arc::clone(&state);
