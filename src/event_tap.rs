@@ -353,10 +353,8 @@ unsafe extern "C" fn cg_keyboard_callback(
 
 /// Sets up system-wide NSEvent monitors for gestures/mouse + IOHIDManager & CGEventTap for keyboard
 pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
-    if !is_accessibility_trusted(false) {
-        println!("[Haptic] Requesting Accessibility permission for Haptic.app...");
-        let _ = is_accessibility_trusted(true);
-    }
+    let is_trusted = is_accessibility_trusted(false);
+    println!("[Haptic] Startup accessibility trusted status: {}", is_trusted);
 
     let raw_config = Arc::into_raw(Arc::clone(&config)) as *mut c_void;
 
