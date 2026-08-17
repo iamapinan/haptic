@@ -201,11 +201,7 @@ fn process_mouse_gesture_event(event: Id, state_lock: &Mutex<MonitorState>) {
             }
         }
 
-        // 6. Keyboard Key Down (NSEventTypeKeyDown = 10)
-        if event_type == 10 {
-            let key_code: u16 = msg_send![event, keyCode];
-            trigger_keyboard_sound(key_code, &state.config);
-        }
+        // End event processing
     }
 }
 
@@ -225,10 +221,9 @@ fn trigger_keyboard_sound(key_code: u16, config: &AppConfig) {
     let last_time = LAST_KEY_TIME.load(Ordering::Relaxed);
     let last_code = LAST_KEY_CODE.load(Ordering::Relaxed);
 
-    // Prevent double sound / echo on a single key press:
-    // Discard same key code within 60ms or any key within 30ms
-    if (key_code == last_code && now_ms.saturating_sub(last_time) < 60)
-        || now_ms.saturating_sub(last_time) < 30
+    // Prevent double sound / echo on a single key press
+    if (key_code == last_code && now_ms.saturating_sub(last_time) < 40)
+        || now_ms.saturating_sub(last_time) < 20
     {
         return;
     }
@@ -448,8 +443,7 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
             | (1 << 22)
             | (1 << 18)
             | (1 << 30)
-            | (1 << 31)
-            | (1 << 10);
+            | (1 << 31);
 
         // Global Monitor
         let state_global = Arc::clone(&state);

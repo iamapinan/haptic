@@ -3,6 +3,7 @@ mod event_tap;
 mod haptic;
 mod menu;
 mod sound;
+mod updater;
 
 use config::AppConfig;
 use event_tap::start_event_tap;
@@ -39,10 +40,13 @@ fn main() {
             return;
         }
 
-        println!("⚡️ Haptic Touch & Scroll for macOS is running!");
+        // 5. Start Background Auto-Updater
+        updater::start_auto_update_checker();
+
+        println!("⚡️ Haptic Touch & Scroll v{} for macOS is running!", updater::CURRENT_VERSION);
         println!("Look for the ⚡️ icon in your macOS menu bar (top-right).");
 
-        // 5. Run macOS Application Event Loop
+        // 6. Run macOS Application Event Loop
         let () = msg_send![app, run];
     }
 }

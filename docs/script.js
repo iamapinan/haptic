@@ -446,87 +446,19 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 hatGain.connect(ctx.destination);
                 hat.start(now);
                 hat.stop(now + 0.060);
-
-            // 8. Open Hi-Hat (T, Y)
-            } else if (['t', 'y'].includes(char)) {
-                const openHat = ctx.createOscillator();
-                const openHatGain = ctx.createGain();
-                openHat.type = 'sawtooth';
-                openHat.frequency.setValueAtTime(7800, now);
-                openHatGain.gain.setValueAtTime(0.65, now);
-                openHatGain.exponentialRampToValueAtTime(0.001, now + 0.200);
-                openHat.connect(openHatGain);
-                openHatGain.connect(ctx.destination);
-                openHat.start(now);
-                openHat.stop(now + 0.205);
-
-            // 9. Crash Cymbal (Accents: Tab, Escape, [, ])
-            } else if (['tab', 'escape', '[', ']'].includes(char) || kCode === 'Tab' || kCode === 'Escape') {
-                const crash = ctx.createOscillator();
-                const crashGain = ctx.createGain();
-                crash.type = 'sawtooth';
-                crash.frequency.setValueAtTime(5800, now);
-                crashGain.gain.setValueAtTime(0.75, now);
-                crashGain.gain.exponentialRampToValueAtTime(0.001, now + 0.420);
-                crash.connect(crashGain);
-                crashGain.connect(ctx.destination);
-                crash.start(now);
-                crash.stop(now + 0.425);
-
-            // 10. Ride Cymbal (Rhythm Timekeeping & Bell: Backspace, \, Arrow Keys)
-            } else if (['backspace', '\\'].includes(char) || kCode === 'Backspace' || kCode.startsWith('Arrow')) {
-                const bell = ctx.createOscillator();
-                const bellGain = ctx.createGain();
-                bell.type = 'sine';
-                bell.frequency.setValueAtTime(680, now);
-                bellGain.gain.setValueAtTime(0.50, now);
-                bellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.150);
-                bell.connect(bellGain);
-                bellGain.connect(ctx.destination);
-                bell.start(now);
-                bell.stop(now + 0.155);
-
-                const ride = ctx.createOscillator();
-                const rideGain = ctx.createGain();
-                ride.type = 'sawtooth';
-                ride.frequency.setValueAtTime(4200, now);
-                rideGain.gain.setValueAtTime(0.40, now);
-                rideGain.gain.exponentialRampToValueAtTime(0.001, now + 0.450);
-                ride.connect(rideGain);
-                rideGain.connect(ctx.destination);
-                ride.start(now);
-                ride.stop(now + 0.455);
-
-            // 11. Cowbell & Extra Percussion
-            } else {
-                const cow = ctx.createOscillator();
-                const cowGain = ctx.createGain();
-                cow.type = 'triangle';
-                cow.frequency.setValueAtTime(560, now);
-                cowGain.gain.setValueAtTime(0.70, now);
-                cowGain.gain.exponentialRampToValueAtTime(0.001, now + 0.150);
-                cow.connect(cowGain);
-                cowGain.connect(ctx.destination);
-                cow.start(now);
-                cow.stop(now + 0.155);
-            }
-
-        } else if (currentProfile === 'marimba' || currentProfile === 'thock') {
+            } else if (currentProfile === 'marimba') {
             // Pure wooden chime / marimba note with rich harmonic overtones
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sine';
             osc.frequency.setValueAtTime(freq, now);
-
             gain.gain.setValueAtTime(0.70, now);
             gain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
-
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start(now);
             osc.stop(now + 0.09);
 
-            // 2nd Harmonic
             const osc2 = ctx.createOscillator();
             const gain2 = ctx.createGain();
             osc2.type = 'sine';

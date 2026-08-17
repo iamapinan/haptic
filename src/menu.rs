@@ -49,12 +49,14 @@ const TAG_SCROLL_HIGH: isize = 401;
 const TAG_SCROLL_MED: isize = 402;
 const TAG_SCROLL_LOW: isize = 403;
 
-const TAG_SND_PIANO: isize = 499;
-const TAG_SND_DRUM: isize = 498;
-const TAG_SND_MARIMBA: isize = 500;
-const TAG_SND_THOCK: isize = 501;
-const TAG_SND_BLUE: isize = 502;
-const TAG_SND_TYPEWRITER: isize = 503;
+const TAG_SND_PIANO: isize = 501;
+const TAG_SND_DRUM: isize = 502;
+const TAG_SND_MARIMBA: isize = 503;
+const TAG_SND_THOCK: isize = 504;
+const TAG_SND_BLUE: isize = 505;
+const TAG_SND_TYPEWRITER: isize = 506;
+const TAG_SND_RED: isize = 507;
+const TAG_SND_BROWN: isize = 508;
 
 const TAG_VOL_100: isize = 601;
 const TAG_VOL_70: isize = 602;
@@ -177,6 +179,8 @@ pub fn update_menu_state() {
         set_item_state(sound_profile_menu, TAG_SND_THOCK, sound_profile == SoundProfile::DeepThock);
         set_item_state(sound_profile_menu, TAG_SND_BLUE, sound_profile == SoundProfile::ClickyBlue);
         set_item_state(sound_profile_menu, TAG_SND_TYPEWRITER, sound_profile == SoundProfile::Typewriter);
+        set_item_state(sound_profile_menu, TAG_SND_RED, sound_profile == SoundProfile::LinearRed);
+        set_item_state(sound_profile_menu, TAG_SND_BROWN, sound_profile == SoundProfile::TactileBrown);
 
         // Update Sound Volume submenu
         set_item_state(sound_vol_menu, TAG_VOL_100, sound_vol >= 90);
@@ -415,6 +419,24 @@ extern "C" fn on_set_sound_typewriter(_this: &Object, _cmd: Sel, _sender: Id) {
     });
 }
 
+extern "C" fn on_set_sound_red(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_sound_profile(SoundProfile::LinearRed);
+        play_keyboard_sound(49, SoundProfile::LinearRed, config.get_sound_volume());
+        update_menu_state();
+    });
+}
+
+extern "C" fn on_set_sound_brown(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        let config = get_config();
+        config.set_sound_profile(SoundProfile::TactileBrown);
+        play_keyboard_sound(49, SoundProfile::TactileBrown, config.get_sound_volume());
+        update_menu_state();
+    });
+}
+
 extern "C" fn on_set_vol_100(_this: &Object, _cmd: Sel, _sender: Id) {
     let _ = std::panic::catch_unwind(|| {
         let config = get_config();
@@ -485,6 +507,12 @@ extern "C" fn on_menu_will_open(_this: &Object, _cmd: Sel, _menu: Id) {
     });
 }
 
+extern "C" fn on_check_updates(_this: &Object, _cmd: Sel, _sender: Id) {
+    let _ = std::panic::catch_unwind(|| {
+        crate::updater::check_for_updates(true);
+    });
+}
+
 extern "C" fn on_quit(_this: &Object, _cmd: Sel, _sender: Id) {
     unsafe {
         let app: Id = msg_send![class!(NSApplication), sharedApplication];
@@ -528,6 +556,8 @@ fn register_action_handler_class() -> &'static Class {
             decl.add_method(sel!(setSoundThock:), on_set_sound_thock as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(setSoundBlue:), on_set_sound_blue as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(setSoundTypewriter:), on_set_sound_typewriter as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setSoundRed:), on_set_sound_red as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(setSoundBrown:), on_set_sound_brown as extern "C" fn(&Object, Sel, Id));
 
             decl.add_method(sel!(setVol100:), on_set_vol_100 as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(setVol70:), on_set_vol_70 as extern "C" fn(&Object, Sel, Id));
@@ -537,6 +567,7 @@ fn register_action_handler_class() -> &'static Class {
 
             decl.add_method(sel!(testHaptic:), on_test_haptic as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(checkAccessibility:), on_check_accessibility as extern "C" fn(&Object, Sel, Id));
+            decl.add_method(sel!(checkUpdates:), on_check_updates as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(menuWillOpen:), on_menu_will_open as extern "C" fn(&Object, Sel, Id));
             decl.add_method(sel!(quit:), on_quit as extern "C" fn(&Object, Sel, Id));
         }
@@ -673,9 +704,11 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
         add_item(sound_profile_menu, "🎹 Grand Piano (Acoustic)", Some(sel!(setSoundPiano:)), TAG_SND_PIANO, "");
         add_item(sound_profile_menu, "🥁 Acoustic Drum Kit (Beats)", Some(sel!(setSoundDrum:)), TAG_SND_DRUM, "");
         add_item(sound_profile_menu, "🎵 Musical Marimba (Melodic)", Some(sel!(setSoundMarimba:)), TAG_SND_MARIMBA, "");
-        add_item(sound_profile_menu, "Cream / Holy Panda (Thocky)", Some(sel!(setSoundThock:)), TAG_SND_THOCK, "");
-        add_item(sound_profile_menu, "Blue Switch (Crisp Click)", Some(sel!(setSoundBlue:)), TAG_SND_BLUE, "");
-        add_item(sound_profile_menu, "Vintage Typewriter", Some(sel!(setSoundTypewriter:)), TAG_SND_TYPEWRITER, "");
+        add_item(sound_profile_menu, "🧈 Cream / Holy Panda (Deep Thock)", Some(sel!(setSoundThock:)), TAG_SND_THOCK, "");
+        add_item(sound_profile_menu, "🔵 Cherry Blue (Crisp Click)", Some(sel!(setSoundBlue:)), TAG_SND_BLUE, "");
+        add_item(sound_profile_menu, "📜 Vintage Typewriter", Some(sel!(setSoundTypewriter:)), TAG_SND_TYPEWRITER, "");
+        add_item(sound_profile_menu, "🔴 Linear Red (Smooth & Muted)", Some(sel!(setSoundRed:)), TAG_SND_RED, "");
+        add_item(sound_profile_menu, "🟤 Tactile Brown (Crisp Clack)", Some(sel!(setSoundBrown:)), TAG_SND_BROWN, "");
 
         let sound_profile_item = add_item(menu, "Keyboard Switch Sound", None, 0, "");
         let () = msg_send![sound_profile_item, setSubmenu: sound_profile_menu];
@@ -702,8 +735,9 @@ pub fn create_status_bar_menu(config: Arc<AppConfig>) -> Result<(), &'static str
 
         add_separator(menu);
 
-        // 10. Launch at Login & Quit
+        // 10. Launch at Login, Updates & Quit
         add_item(menu, "Launch at Login", Some(sel!(toggleLaunchAtLogin:)), TAG_LAUNCH_AT_LOGIN, "");
+        add_item(menu, "Check for Updates...", Some(sel!(checkUpdates:)), 0, "u");
         add_item(menu, "Quit Haptic", Some(sel!(quit:)), 0, "q");
 
         // Attach menu to status item
