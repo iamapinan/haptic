@@ -395,6 +395,41 @@ pub fn start_event_tap(config: Arc<AppConfig>) -> Result<(), &'static str> {
             println!("[Haptic] CGEventTap scheduled on Main RunLoop.");
         }
 
+        // Spawn a background supervisor thread to automatically hook CGEventTap as soon as Accessibility permission is granted
+        let raw_config_usize = raw_config as usize;
+        std::thread::spawn(move || {
+            let raw_config = raw_config_usize as *mut c_void;
+            loop {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+
+                if KEYBOARD_TAP_REF.load(Ordering::Relaxed) == 0 {
+                    if is_accessibility_trusted(false) {
+                        println!("[Haptic Supervisor] Accessibility is now trusted! Creating CGEventTap...");
+                        let tap = CGEventTapCreate(
+                            1, // kCGSessionEventTap
+                            0, // kCGHeadInsertEventTap
+                            1, // kCGEventTapOptionListenOnly
+                            1 << 10, // kCGEventKeyDown
+                            cg_keyboard_callback,
+                            raw_config,
+                        );
+                        if !tap.is_null() {
+                            KEYBOARD_TAP_REF.store(tap as usize, Ordering::Relaxed);
+                            let main_run_loop = CFRunLoopGetMain();
+                            let loop_source = core_foundation::mach_port::CFMachPortCreateRunLoopSource(
+                                std::ptr::null_mut(),
+                                tap as _,
+                                0,
+                            );
+                            CFRunLoopAddSource(main_run_loop, loop_source, kCFRunLoopCommonModes);
+                            CGEventTapEnable(tap, true);
+                            println!("[Haptic Supervisor] CGEventTap hooked successfully into Main RunLoop!");
+                        }
+                    }
+                }
+            }
+        });
+
         // 3. NSEvent Monitors for Mouse and Multi-Touch Gestures
         let state = Arc::new(Mutex::new(MonitorState {
             config,

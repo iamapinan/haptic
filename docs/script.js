@@ -200,53 +200,77 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
         const freq = getKeyFrequency(keyVal, code);
 
         if (currentProfile === 'piano') {
-            // Concert Grand Piano with rich string harmonics and felt hammer strike
+            // Concert Grand Piano: 360ms sustain with rich string chorus and soundboard body
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sine';
             osc.frequency.setValueAtTime(freq, now);
-            gain.gain.setValueAtTime(0.65, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.130);
+            gain.gain.setValueAtTime(0.70, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.360);
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start(now);
-            osc.stop(now + 0.135);
+            osc.stop(now + 0.365);
 
-            // 2nd Harmonic
+            // Left Detuned String (Unison Chorus)
+            const oscL = ctx.createOscillator();
+            const gainL = ctx.createGain();
+            oscL.type = 'sine';
+            oscL.frequency.setValueAtTime(freq * 1.0015, now);
+            gainL.gain.setValueAtTime(0.35, now);
+            gainL.gain.exponentialRampToValueAtTime(0.001, now + 0.320);
+            oscL.connect(gainL);
+            gainL.connect(ctx.destination);
+            oscL.start(now);
+            oscL.stop(now + 0.325);
+
+            // 2nd Harmonic (Octave Warmth)
             const osc2 = ctx.createOscillator();
             const gain2 = ctx.createGain();
             osc2.type = 'sine';
             osc2.frequency.setValueAtTime(freq * 2.0, now);
-            gain2.gain.setValueAtTime(0.38, now);
-            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.090);
+            gain2.gain.setValueAtTime(0.45, now);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.240);
             osc2.connect(gain2);
             gain2.connect(ctx.destination);
             osc2.start(now);
-            osc2.stop(now + 0.095);
+            osc2.stop(now + 0.245);
 
-            // 3rd Harmonic
+            // 3rd Harmonic (Fifth)
             const osc3 = ctx.createOscillator();
             const gain3 = ctx.createGain();
             osc3.type = 'sine';
             osc3.frequency.setValueAtTime(freq * 3.0, now);
-            gain3.gain.setValueAtTime(0.22, now);
-            gain3.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+            gain3.gain.setValueAtTime(0.28, now);
+            gain3.gain.exponentialRampToValueAtTime(0.001, now + 0.160);
             osc3.connect(gain3);
             gain3.connect(ctx.destination);
             osc3.start(now);
-            osc3.stop(now + 0.070);
+            osc3.stop(now + 0.165);
+
+            // Soundboard Woody Body (110Hz)
+            const body = ctx.createOscillator();
+            const bodyGain = ctx.createGain();
+            body.type = 'sine';
+            body.frequency.setValueAtTime(110, now);
+            bodyGain.gain.setValueAtTime(0.25, now);
+            bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.180);
+            body.connect(bodyGain);
+            bodyGain.connect(ctx.destination);
+            body.start(now);
+            body.stop(now + 0.185);
 
             // Soft felt hammer attack
             const hammer = ctx.createOscillator();
             const hammerGain = ctx.createGain();
             hammer.type = 'triangle';
-            hammer.frequency.setValueAtTime(Math.min(freq * 1.5, 350), now);
-            hammerGain.gain.setValueAtTime(0.22, now);
-            hammerGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
+            hammer.frequency.setValueAtTime(Math.min(freq * 1.5, 320), now);
+            hammerGain.gain.setValueAtTime(0.30, now);
+            hammerGain.gain.exponentialRampToValueAtTime(0.001, now + 0.025);
             hammer.connect(hammerGain);
             hammerGain.connect(ctx.destination);
             hammer.start(now);
-            hammer.stop(now + 0.020);
+            hammer.stop(now + 0.030);
 
         } else if (currentProfile === 'marimba' || currentProfile === 'thock') {
             // Pure wooden chime / marimba note with rich harmonic overtones

@@ -173,8 +173,8 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
     let freq = get_key_frequency(key_code);
 
     let duration = match profile {
-        SoundProfile::GrandPiano => 0.130,
-        SoundProfile::MusicalMarimba => 0.085,
+        SoundProfile::GrandPiano => 0.360,
+        SoundProfile::MusicalMarimba => 0.080,
         SoundProfile::DeepThock => 0.065,
         SoundProfile::ClickyBlue => 0.055,
         SoundProfile::Typewriter => 0.075,
@@ -187,26 +187,43 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
         let t = i as f64 / sample_rate;
         let sample: f64 = match profile {
             SoundProfile::GrandPiano => {
-                // Concert Grand Piano with rich string harmonics and subtle felt hammer strike
-                let hammer_freq = (freq * 1.5).clamp(80.0, 350.0);
-                let strike = (2.0 * std::f64::consts::PI * hammer_freq * t).sin() * (-t * 220.0).exp() * 0.22;
+                // Concert Grand Piano: Lush 3-string beating resonance, concert soundboard depth, 360ms sustain tail
+                let hammer_freq = (freq * 1.5).clamp(90.0, 320.0);
+                // Felt hammer compression strike
+                let strike = (2.0 * std::f64::consts::PI * hammer_freq * t).sin() * (-t * 160.0).exp() * 0.30;
 
-                let h1 = (2.0 * std::f64::consts::PI * freq * t).sin() * (-t * 14.0).exp() * 0.65;
-                let h2 = (2.0 * std::f64::consts::PI * (freq * 2.0) * t).sin() * (-t * 20.0).exp() * 0.38;
-                let h3 = (2.0 * std::f64::consts::PI * (freq * 3.0) * t).sin() * (-t * 28.0).exp() * 0.22;
-                let h4 = (2.0 * std::f64::consts::PI * (freq * 4.0) * t).sin() * (-t * 36.0).exp() * 0.12;
-                let h5 = (2.0 * std::f64::consts::PI * (freq * 5.0) * t).sin() * (-t * 48.0).exp() * 0.06;
+                // Triple string chorus (unison beating strings)
+                let s_center = (2.0 * std::f64::consts::PI * freq * t).sin();
+                let s_left   = (2.0 * std::f64::consts::PI * (freq * 1.0015) * t).sin();
+                let s_right  = (2.0 * std::f64::consts::PI * (freq * 0.9985) * t).sin();
+                let fundamental = (s_center * 0.40 + s_left * 0.30 + s_right * 0.30) * (-t * 4.8).exp() * 0.75;
 
-                (strike + h1 + h2 + h3 + h4 + h5) * vol_multiplier
+                // 2nd Harmonic (octave string warmth with beating)
+                let h2_a = (2.0 * std::f64::consts::PI * (freq * 2.0) * t).sin();
+                let h2_b = (2.0 * std::f64::consts::PI * (freq * 2.002) * t).sin();
+                let h2 = (h2_a * 0.55 + h2_b * 0.45) * (-t * 6.5).exp() * 0.45;
+
+                // 3rd Harmonic (fifth complexity)
+                let h3 = (2.0 * std::f64::consts::PI * (freq * 3.0) * t).sin() * (-t * 10.0).exp() * 0.28;
+
+                // 4th Harmonic (double octave shimmer)
+                let h4 = (2.0 * std::f64::consts::PI * (freq * 4.0) * t).sin() * (-t * 15.0).exp() * 0.16;
+
+                // 5th Harmonic (sparkle)
+                let h5 = (2.0 * std::f64::consts::PI * (freq * 5.0) * t).sin() * (-t * 22.0).exp() * 0.08;
+
+                // Soundboard woody acoustic body reverb (110Hz body resonance)
+                let body = (2.0 * std::f64::consts::PI * 110.0 * t).sin() * (-t * 8.0).exp() * 0.18;
+
+                (strike + fundamental + h2 + h3 + h4 + h5 + body) * vol_multiplier
             }
             SoundProfile::MusicalMarimba => {
-                // Pure wooden chime / marimba note with rich harmonic overtones
-                let strike = (2.0 * std::f64::consts::PI * (freq * 4.0).min(12000.0) * t).sin() * (-t * 350.0).exp() * 0.25;
-                let tone = (2.0 * std::f64::consts::PI * freq * t).sin() * (-t * 26.0).exp();
-                let overtone = (2.0 * std::f64::consts::PI * (freq * 2.0) * t).sin() * (-t * 40.0).exp() * 0.35;
-                let chime = (2.0 * std::f64::consts::PI * (freq * 3.0) * t).sin() * (-t * 65.0).exp() * 0.15;
+                // Pure wooden chime / marimba note with fast wooden bar transient (80ms)
+                let strike = (2.0 * std::f64::consts::PI * (freq * 4.0).min(12000.0) * t).sin() * (-t * 350.0).exp() * 0.30;
+                let tone = (2.0 * std::f64::consts::PI * freq * t).sin() * (-t * 28.0).exp();
+                let overtone = (2.0 * std::f64::consts::PI * (freq * 2.0) * t).sin() * (-t * 45.0).exp() * 0.25;
 
-                (strike + tone * 0.70 + overtone + chime) * vol_multiplier
+                (strike + tone * 0.70 + overtone) * vol_multiplier
             }
             SoundProfile::DeepThock => {
                 // Creamy mechanical thock pop + distinct melodic pitch body
