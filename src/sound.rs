@@ -177,15 +177,21 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
     let duration = match profile {
         SoundProfile::GrandPiano => 0.360,
         SoundProfile::DrumKit => {
-            // Cymbals need longer decay (350ms), Kicks/Toms 180ms, Snares 160ms, Hats 70ms
-            if key_code == 48 || key_code == 51 || key_code == 53 || key_code == 27 || key_code == 24 {
-                0.350 // Crash / Ride Cymbal
-            } else if key_code == 49 || key_code == 36 || key_code == 11 || key_code == 9 || key_code == 8 || key_code == 6 || key_code == 7 {
-                0.200 // Kick Drum
-            } else if key_code == 0 || key_code == 1 || key_code == 2 || key_code == 3 || key_code == 4 || key_code == 5 || key_code == 38 || key_code == 40 || key_code == 37 {
-                0.160 // Snare Drum
+            // Cymbals (450ms), Floor Toms (280ms), Kick (240ms), Open Hat/Rack Toms (220ms), Snare (200ms), Closed Hat (65ms)
+            if key_code == 48 || key_code == 53 || key_code == 33 || key_code == 30 || key_code == 51 || key_code == 42 || key_code == 123 || key_code == 124 || key_code == 125 || key_code == 126 {
+                0.450 // Crash & Ride Cymbals
+            } else if key_code == 18 || key_code == 19 || key_code == 20 || key_code == 28 || key_code == 25 || key_code == 29 || key_code == 27 || key_code == 24 {
+                0.280 // Floor Tom
+            } else if key_code == 49 || key_code == 36 || key_code == 11 || key_code == 9 || key_code == 45 || key_code == 8 || key_code == 6 || key_code == 7 {
+                0.240 // Bass Drum / Kick
+            } else if key_code == 21 || key_code == 23 || key_code == 22 || key_code == 26 || key_code == 12 || key_code == 35 || key_code == 17 || key_code == 16 || key_code == 32 || key_code == 13 {
+                0.220 // Rack Toms & Open Hi-Hat
+            } else if key_code == 38 || key_code == 3 || key_code == 2 || key_code == 40 || key_code == 1 || key_code == 37 || key_code == 0 || key_code == 41 || key_code == 39 {
+                0.200 // Snare Drum
+            } else if key_code == 4 || key_code == 5 || key_code == 14 || key_code == 15 || key_code == 34 || key_code == 31 {
+                0.065 // Closed Hi-Hat
             } else {
-                0.100 // Hi-Hat & Toms
+                0.150 // Cowbell & Percussion
             }
         }
         SoundProfile::MusicalMarimba => 0.080,
@@ -232,46 +238,88 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
                 (strike + fundamental + h2 + h3 + h4 + h5 + body) * vol_multiplier
             }
             SoundProfile::DrumKit => {
-                // Realistic Acoustic Drum Kit Synthesizer
-                // 1. Kick Drum (Space, Enter, B, V, C, Z, X)
-                if key_code == 49 || key_code == 36 || key_code == 11 || key_code == 9 || key_code == 8 || key_code == 6 || key_code == 7 {
-                    let _pitch_env = 52.0 + 110.0 * (-t * 45.0).exp();
-                    let phase = 2.0 * std::f64::consts::PI * (52.0 * t + (110.0 / 45.0) * (1.0 - (-t * 45.0).exp()));
-                    let body = phase.sin() * (-t * 20.0).exp() * 0.85;
-                    let click = (2.0 * std::f64::consts::PI * 2600.0 * t).sin() * (-t * 280.0).exp() * 0.35;
-                    (body + click) * vol_multiplier
+                // Authentic Acoustic Drum Kit Synthesizer (Professional Physical Modeling)
+                let mut rng = 0x12345678u32 ^ ((key_code as u32 + 1) * 2654435761);
+                let mut white_noise = || -> f64 {
+                    rng = rng.wrapping_mul(1664525).wrapping_add(1013904223);
+                    ((rng >> 16) as f64 / 32768.0) - 1.0
+                };
+
+                // 1. Bass Drum / Kick (Space, Enter, B, V, N, C, Z, X)
+                if key_code == 49 || key_code == 36 || key_code == 11 || key_code == 9 || key_code == 45 || key_code == 8 || key_code == 6 || key_code == 7 {
+                    let pitch_glide = 40.0 * t + (90.0 / 48.0) * (1.0 - (-t * 48.0).exp());
+                    let sub_body = (2.0 * std::f64::consts::PI * pitch_glide).sin() * (-t * 16.0).exp() * 0.90;
+                    let shell_boom = (2.0 * std::f64::consts::PI * 85.0 * t).sin() * (-t * 26.0).exp() * 0.35;
+                    let beater_click = (2.0 * std::f64::consts::PI * 2800.0 * t).sin() * (-t * 320.0).exp() * 0.40;
+                    (sub_body + shell_boom + beater_click) * vol_multiplier
                 }
-                // 2. Snare Drum (Home Row: A, S, D, F, G, H, J, K, L, ;, ')
-                else if key_code == 0 || key_code == 1 || key_code == 2 || key_code == 3 || key_code == 4 || key_code == 5 || key_code == 38 || key_code == 40 || key_code == 37 || key_code == 41 || key_code == 39 {
-                    let tone = (2.0 * std::f64::consts::PI * 190.0 * t).sin() * (-t * 26.0).exp() * 0.55;
-                    // Snare wire rattle (metallic harmonic noise)
-                    let rattle = (2.0 * std::f64::consts::PI * 3400.0 * t).sin() * (2.0 * std::f64::consts::PI * 7200.0 * t).sin() * (-t * 35.0).exp() * 0.45;
-                    let stick = (2.0 * std::f64::consts::PI * 1400.0 * t).sin() * (-t * 220.0).exp() * 0.30;
-                    (tone + rattle + stick) * vol_multiplier
+                // 2. Snare Drum with Crisp Strainer Wire Rattle (J, F, D, K, S, L, A, ;, ')
+                else if key_code == 38 || key_code == 3 || key_code == 2 || key_code == 40 || key_code == 1 || key_code == 37 || key_code == 0 || key_code == 41 || key_code == 39 {
+                    let shell_tone = (2.0 * std::f64::consts::PI * 185.0 * t).sin() * (-t * 28.0).exp() * 0.50;
+                    let stick_impact = (2.0 * std::f64::consts::PI * 920.0 * t).sin() * (-t * 190.0).exp() * 0.40;
+                    let n = white_noise();
+                    let snare_wires = n * (-t * 32.0).exp() * 0.65;
+                    let bottom_snare_ring = (2.0 * std::f64::consts::PI * 3600.0 * t).sin() * (-t * 38.0).exp() * 0.25;
+                    (shell_tone + stick_impact + snare_wires + bottom_snare_ring) * vol_multiplier
                 }
-                // 3. Crash / Ride Cymbals (Tab, Backspace, Esc, -, =)
-                else if key_code == 48 || key_code == 51 || key_code == 53 || key_code == 27 || key_code == 24 {
-                    let c1 = (2.0 * std::f64::consts::PI * 4500.0 * t).sin();
-                    let c2 = (2.0 * std::f64::consts::PI * 7200.0 * t).sin();
-                    let c3 = (2.0 * std::f64::consts::PI * 10800.0 * t).sin();
-                    let shimmer = (c1 * 0.35 + c2 * 0.35 + c3 * 0.30) * (-t * 9.0).exp() * 0.65;
-                    shimmer * vol_multiplier
-                }
-                // 4. Tom-Toms (Number Row: 1 - 0)
-                else if key_code == 18 || key_code == 19 || key_code == 20 || key_code == 21 || key_code == 23 || key_code == 22 || key_code == 26 || key_code == 28 || key_code == 25 || key_code == 29 {
-                    let tom_base = 90.0 + ((key_code % 10) as f64 * 18.0);
-                    let phase = 2.0 * std::f64::consts::PI * (tom_base * t + (70.0 / 30.0) * (1.0 - (-t * 30.0).exp()));
-                    let body = phase.sin() * (-t * 22.0).exp() * 0.75;
-                    let thump = (2.0 * std::f64::consts::PI * 650.0 * t).sin() * (-t * 200.0).exp() * 0.30;
-                    (body + thump) * vol_multiplier
-                }
-                // 5. Hi-Hats Closed & Open (Top Row: Q, W, E, R, T, Y, U, I, O, P)
-                else {
-                    let h1 = (2.0 * std::f64::consts::PI * 6400.0 * t).sin();
-                    let h2 = (2.0 * std::f64::consts::PI * 9800.0 * t).sin();
-                    let h3 = (2.0 * std::f64::consts::PI * 13200.0 * t).sin();
-                    let hat = (h1 * 0.40 + h2 * 0.35 + h3 * 0.25) * (-t * 85.0).exp() * 0.55;
+                // 3. Closed Hi-Hat (H, G, E, R, I, O)
+                else if key_code == 4 || key_code == 5 || key_code == 14 || key_code == 15 || key_code == 34 || key_code == 31 {
+                    let n = white_noise();
+                    let metal1 = (2.0 * std::f64::consts::PI * 6200.0 * t).sin();
+                    let metal2 = (2.0 * std::f64::consts::PI * 9600.0 * t).sin();
+                    let metal3 = (2.0 * std::f64::consts::PI * 13400.0 * t).sin();
+                    let hat = (metal1 * 0.25 + metal2 * 0.30 + metal3 * 0.20 + n * 0.45) * (-t * 90.0).exp() * 0.65;
                     hat * vol_multiplier
+                }
+                // 4. Open Hi-Hat (T, Y, U, W)
+                else if key_code == 17 || key_code == 16 || key_code == 32 || key_code == 13 {
+                    let n = white_noise();
+                    let metal1 = (2.0 * std::f64::consts::PI * 5800.0 * t).sin();
+                    let metal2 = (2.0 * std::f64::consts::PI * 8900.0 * t).sin();
+                    let metal3 = (2.0 * std::f64::consts::PI * 12600.0 * t).sin();
+                    let open_hat = (metal1 * 0.25 + metal2 * 0.30 + metal3 * 0.25 + n * 0.40) * (-t * 22.0).exp() * 0.65;
+                    open_hat * vol_multiplier
+                }
+                // 5. Tom-Toms (Rack Toms for Roll Fills: 4, 5, 6, 7, Q, P)
+                else if key_code == 21 || key_code == 23 || key_code == 22 || key_code == 26 || key_code == 12 || key_code == 35 {
+                    let base_freq = if key_code == 21 || key_code == 12 { 210.0 } else if key_code == 23 || key_code == 35 { 170.0 } else { 140.0 };
+                    let pitch_glide = (base_freq * 0.75) * t + (base_freq * 0.45 / 32.0) * (1.0 - (-t * 32.0).exp());
+                    let skin = (2.0 * std::f64::consts::PI * pitch_glide).sin() * (-t * 20.0).exp() * 0.80;
+                    let stick = (2.0 * std::f64::consts::PI * 650.0 * t).sin() * (-t * 200.0).exp() * 0.35;
+                    (skin + stick) * vol_multiplier
+                }
+                // 6. Floor Tom (Deep Low Tom: 1, 2, 3, 8, 9, 0, -, =)
+                else if key_code == 18 || key_code == 19 || key_code == 20 || key_code == 28 || key_code == 25 || key_code == 29 || key_code == 27 || key_code == 24 {
+                    let pitch_glide = 62.0 * t + (55.0 / 25.0) * (1.0 - (-t * 25.0).exp());
+                    let deep_boom = (2.0 * std::f64::consts::PI * pitch_glide).sin() * (-t * 14.0).exp() * 0.85;
+                    let thump = (2.0 * std::f64::consts::PI * 450.0 * t).sin() * (-t * 160.0).exp() * 0.40;
+                    (deep_boom + thump) * vol_multiplier
+                }
+                // 7. Crash Cymbal (Accents: Tab, Escape, [, ])
+                else if key_code == 48 || key_code == 53 || key_code == 33 || key_code == 30 {
+                    let n = white_noise();
+                    let b1 = (2.0 * std::f64::consts::PI * 4200.0 * t).sin();
+                    let b2 = (2.0 * std::f64::consts::PI * 6800.0 * t).sin();
+                    let b3 = (2.0 * std::f64::consts::PI * 9400.0 * t).sin();
+                    let b4 = (2.0 * std::f64::consts::PI * 13100.0 * t).sin();
+                    let crash = (b1 * 0.20 + b2 * 0.25 + b3 * 0.25 + b4 * 0.20 + n * 0.50) * (-t * 7.5).exp() * 0.75;
+                    crash * vol_multiplier
+                }
+                // 8. Ride Cymbal (Rhythm Timekeeping & Bell: Backspace, \, Arrow Keys)
+                else if key_code == 51 || key_code == 42 || key_code == 123 || key_code == 124 || key_code == 125 || key_code == 126 {
+                    let ping_bell = (2.0 * std::f64::consts::PI * 780.0 * t).sin() * (-t * 40.0).exp() * 0.45;
+                    let bronze1 = (2.0 * std::f64::consts::PI * 4900.0 * t).sin();
+                    let bronze2 = (2.0 * std::f64::consts::PI * 8700.0 * t).sin();
+                    let n = white_noise();
+                    let ride_wash = (bronze1 * 0.35 + bronze2 * 0.35 + n * 0.30) * (-t * 6.0).exp() * 0.45;
+                    (ping_bell + ride_wash) * vol_multiplier
+                }
+                // 9. Extra Percussion / Cowbell for any other key
+                else {
+                    let cow1 = (2.0 * std::f64::consts::PI * 560.0 * t).sin();
+                    let cow2 = (2.0 * std::f64::consts::PI * 845.0 * t).sin();
+                    let bell = (cow1 * 0.55 + cow2 * 0.45) * (-t * 45.0).exp() * 0.70;
+                    bell * vol_multiplier
                 }
             }
             SoundProfile::MusicalMarimba => {
