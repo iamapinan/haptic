@@ -147,7 +147,7 @@ pub struct AppConfig {
     pub pattern: AtomicU8,              // 0 = Generic, 1 = Alignment, 2 = LevelChange
     pub mouse_sensitivity: AtomicU8,    // 0 = High, 1 = Medium, 2 = Low
     pub scroll_sensitivity: AtomicU8,   // 0 = High, 1 = Medium, 2 = Low
-    pub sound_profile: AtomicU8,        // 0 = Grand Piano, 1 = Marimba, 2 = Thock, 3 = Blue, 4 = Typewriter
+    pub sound_profile: AtomicU8,        // 0 = Grand Piano, 1 = Drum Kit, 2 = Marimba, 3 = Thock, 4 = Blue, 5 = Typewriter
     pub sound_volume: AtomicU8,         // 0 - 100 (Default: 70)
     pub min_interval_ms: AtomicU64,     // minimum ms between consecutive haptic pulses
 }

@@ -6,20 +6,22 @@ use std::sync::Mutex;
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum SoundProfile {
     GrandPiano = 0,
-    MusicalMarimba = 1,
-    DeepThock = 2,
-    ClickyBlue = 3,
-    Typewriter = 4,
+    DrumKit = 1,
+    MusicalMarimba = 2,
+    DeepThock = 3,
+    ClickyBlue = 4,
+    Typewriter = 5,
 }
 
 impl SoundProfile {
     pub fn from_u8(val: u8) -> Self {
         match val {
             0 => SoundProfile::GrandPiano,
-            1 => SoundProfile::MusicalMarimba,
-            2 => SoundProfile::DeepThock,
-            3 => SoundProfile::ClickyBlue,
-            4 => SoundProfile::Typewriter,
+            1 => SoundProfile::DrumKit,
+            2 => SoundProfile::MusicalMarimba,
+            3 => SoundProfile::DeepThock,
+            4 => SoundProfile::ClickyBlue,
+            5 => SoundProfile::Typewriter,
             _ => SoundProfile::GrandPiano,
         }
     }
@@ -174,6 +176,18 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
 
     let duration = match profile {
         SoundProfile::GrandPiano => 0.360,
+        SoundProfile::DrumKit => {
+            // Cymbals need longer decay (350ms), Kicks/Toms 180ms, Snares 160ms, Hats 70ms
+            if key_code == 48 || key_code == 51 || key_code == 53 || key_code == 27 || key_code == 24 {
+                0.350 // Crash / Ride Cymbal
+            } else if key_code == 49 || key_code == 36 || key_code == 11 || key_code == 9 || key_code == 8 || key_code == 6 || key_code == 7 {
+                0.200 // Kick Drum
+            } else if key_code == 0 || key_code == 1 || key_code == 2 || key_code == 3 || key_code == 4 || key_code == 5 || key_code == 38 || key_code == 40 || key_code == 37 {
+                0.160 // Snare Drum
+            } else {
+                0.100 // Hi-Hat & Toms
+            }
+        }
         SoundProfile::MusicalMarimba => 0.080,
         SoundProfile::DeepThock => 0.065,
         SoundProfile::ClickyBlue => 0.055,
@@ -216,6 +230,49 @@ fn generate_key_wav(profile: SoundProfile, key_code: u16, vol_multiplier: f64) -
                 let body = (2.0 * std::f64::consts::PI * 110.0 * t).sin() * (-t * 8.0).exp() * 0.18;
 
                 (strike + fundamental + h2 + h3 + h4 + h5 + body) * vol_multiplier
+            }
+            SoundProfile::DrumKit => {
+                // Realistic Acoustic Drum Kit Synthesizer
+                // 1. Kick Drum (Space, Enter, B, V, C, Z, X)
+                if key_code == 49 || key_code == 36 || key_code == 11 || key_code == 9 || key_code == 8 || key_code == 6 || key_code == 7 {
+                    let _pitch_env = 52.0 + 110.0 * (-t * 45.0).exp();
+                    let phase = 2.0 * std::f64::consts::PI * (52.0 * t + (110.0 / 45.0) * (1.0 - (-t * 45.0).exp()));
+                    let body = phase.sin() * (-t * 20.0).exp() * 0.85;
+                    let click = (2.0 * std::f64::consts::PI * 2600.0 * t).sin() * (-t * 280.0).exp() * 0.35;
+                    (body + click) * vol_multiplier
+                }
+                // 2. Snare Drum (Home Row: A, S, D, F, G, H, J, K, L, ;, ')
+                else if key_code == 0 || key_code == 1 || key_code == 2 || key_code == 3 || key_code == 4 || key_code == 5 || key_code == 38 || key_code == 40 || key_code == 37 || key_code == 41 || key_code == 39 {
+                    let tone = (2.0 * std::f64::consts::PI * 190.0 * t).sin() * (-t * 26.0).exp() * 0.55;
+                    // Snare wire rattle (metallic harmonic noise)
+                    let rattle = (2.0 * std::f64::consts::PI * 3400.0 * t).sin() * (2.0 * std::f64::consts::PI * 7200.0 * t).sin() * (-t * 35.0).exp() * 0.45;
+                    let stick = (2.0 * std::f64::consts::PI * 1400.0 * t).sin() * (-t * 220.0).exp() * 0.30;
+                    (tone + rattle + stick) * vol_multiplier
+                }
+                // 3. Crash / Ride Cymbals (Tab, Backspace, Esc, -, =)
+                else if key_code == 48 || key_code == 51 || key_code == 53 || key_code == 27 || key_code == 24 {
+                    let c1 = (2.0 * std::f64::consts::PI * 4500.0 * t).sin();
+                    let c2 = (2.0 * std::f64::consts::PI * 7200.0 * t).sin();
+                    let c3 = (2.0 * std::f64::consts::PI * 10800.0 * t).sin();
+                    let shimmer = (c1 * 0.35 + c2 * 0.35 + c3 * 0.30) * (-t * 9.0).exp() * 0.65;
+                    shimmer * vol_multiplier
+                }
+                // 4. Tom-Toms (Number Row: 1 - 0)
+                else if key_code == 18 || key_code == 19 || key_code == 20 || key_code == 21 || key_code == 23 || key_code == 22 || key_code == 26 || key_code == 28 || key_code == 25 || key_code == 29 {
+                    let tom_base = 90.0 + ((key_code % 10) as f64 * 18.0);
+                    let phase = 2.0 * std::f64::consts::PI * (tom_base * t + (70.0 / 30.0) * (1.0 - (-t * 30.0).exp()));
+                    let body = phase.sin() * (-t * 22.0).exp() * 0.75;
+                    let thump = (2.0 * std::f64::consts::PI * 650.0 * t).sin() * (-t * 200.0).exp() * 0.30;
+                    (body + thump) * vol_multiplier
+                }
+                // 5. Hi-Hats Closed & Open (Top Row: Q, W, E, R, T, Y, U, I, O, P)
+                else {
+                    let h1 = (2.0 * std::f64::consts::PI * 6400.0 * t).sin();
+                    let h2 = (2.0 * std::f64::consts::PI * 9800.0 * t).sin();
+                    let h3 = (2.0 * std::f64::consts::PI * 13200.0 * t).sin();
+                    let hat = (h1 * 0.40 + h2 * 0.35 + h3 * 0.25) * (-t * 85.0).exp() * 0.55;
+                    hat * vol_multiplier
+                }
             }
             SoundProfile::MusicalMarimba => {
                 // Pure wooden chime / marimba note with fast wooden bar transient (80ms)
@@ -296,6 +353,7 @@ pub fn init_sound_engine(vol_pct: u8) {
     if let Ok((stream, stream_handle)) = OutputStream::try_default() {
         let profiles = [
             SoundProfile::GrandPiano,
+            SoundProfile::DrumKit,
             SoundProfile::MusicalMarimba,
             SoundProfile::DeepThock,
             SoundProfile::ClickyBlue,

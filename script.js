@@ -272,6 +272,106 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
             hammer.start(now);
             hammer.stop(now + 0.030);
 
+        } else if (currentProfile === 'drum') {
+            // Realistic Acoustic Drum Kit Web Audio Synthesis
+            const char = (keyVal || 'a').toLowerCase();
+            const isKick = keyVal === ' ' || code === 'Space' || keyVal === 'Enter' || code === 'Enter' || ['b', 'v', 'c', 'z', 'x'].includes(char);
+            const isSnare = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', "'"].includes(char);
+            const isCymbal = ['tab', 'backspace', 'escape', '-', '=', '[', ']'].includes(char) || code === 'Tab' || code === 'Backspace' || code === 'Escape';
+            const isTom = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'].includes(char);
+
+            if (isKick) {
+                // Kick Drum: Sub bass punch drop (150Hz -> 45Hz) + beater click
+                const kick = ctx.createOscillator();
+                const kickGain = ctx.createGain();
+                kick.type = 'sine';
+                kick.frequency.setValueAtTime(150, now);
+                kick.frequency.exponentialRampToValueAtTime(45, now + 0.08);
+                kickGain.gain.setValueAtTime(0.90, now);
+                kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.200);
+                kick.connect(kickGain);
+                kickGain.connect(ctx.destination);
+                kick.start(now);
+                kick.stop(now + 0.210);
+
+                const click = ctx.createOscillator();
+                const clickGain = ctx.createGain();
+                click.type = 'triangle';
+                click.frequency.setValueAtTime(2600, now);
+                clickGain.gain.setValueAtTime(0.35, now);
+                clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+                click.connect(clickGain);
+                clickGain.connect(ctx.destination);
+                click.start(now);
+                click.stop(now + 0.020);
+
+            } else if (isSnare) {
+                // Snare Drum: Shell tone + snare wire noise
+                const snare = ctx.createOscillator();
+                const snareGain = ctx.createGain();
+                snare.type = 'triangle';
+                snare.frequency.setValueAtTime(190, now);
+                snare.frequency.exponentialRampToValueAtTime(120, now + 0.06);
+                snareGain.gain.setValueAtTime(0.60, now);
+                snareGain.gain.exponentialRampToValueAtTime(0.001, now + 0.160);
+                snare.connect(snareGain);
+                snareGain.connect(ctx.destination);
+                snare.start(now);
+                snare.stop(now + 0.165);
+
+                const rattle = ctx.createOscillator();
+                const rattleGain = ctx.createGain();
+                rattle.type = 'sawtooth';
+                rattle.frequency.setValueAtTime(4200, now);
+                rattleGain.gain.setValueAtTime(0.45, now);
+                rattleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.120);
+                rattle.connect(rattleGain);
+                rattleGain.connect(ctx.destination);
+                rattle.start(now);
+                rattle.stop(now + 0.125);
+
+            } else if (isCymbal) {
+                // Crash / Ride Cymbal: Shimmering high metallic wash
+                const c1 = ctx.createOscillator();
+                const c1Gain = ctx.createGain();
+                c1.type = 'sawtooth';
+                c1.frequency.setValueAtTime(7400, now);
+                c1Gain.gain.setValueAtTime(0.40, now);
+                c1Gain.gain.exponentialRampToValueAtTime(0.001, now + 0.350);
+                c1.connect(c1Gain);
+                c1Gain.connect(ctx.destination);
+                c1.start(now);
+                c1.stop(now + 0.360);
+
+            } else if (isTom) {
+                // Tom Drum: Tuned pitched tom
+                const tom = ctx.createOscillator();
+                const tomGain = ctx.createGain();
+                const tomFreq = 110 + (char.charCodeAt(0) % 10) * 16;
+                tom.type = 'sine';
+                tom.frequency.setValueAtTime(tomFreq * 1.5, now);
+                tom.frequency.exponentialRampToValueAtTime(tomFreq, now + 0.08);
+                tomGain.gain.setValueAtTime(0.75, now);
+                tomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.180);
+                tom.connect(tomGain);
+                tomGain.connect(ctx.destination);
+                tom.start(now);
+                tom.stop(now + 0.190);
+
+            } else {
+                // Hi-Hat: Crisp high metallic hit
+                const hat = ctx.createOscillator();
+                const hatGain = ctx.createGain();
+                hat.type = 'sawtooth';
+                hat.frequency.setValueAtTime(9800, now);
+                hatGain.gain.setValueAtTime(0.50, now);
+                hatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.050);
+                hat.connect(hatGain);
+                hatGain.connect(ctx.destination);
+                hat.start(now);
+                hat.stop(now + 0.055);
+            }
+
         } else if (currentProfile === 'marimba' || currentProfile === 'thock') {
             // Pure wooden chime / marimba note with rich harmonic overtones
             const osc = ctx.createOscillator();
