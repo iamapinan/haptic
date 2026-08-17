@@ -50,7 +50,7 @@ const translations = {
         step3_desc: "Launch the app and grant Accessibility permissions in System Settings so it can monitor mouse and key events.",
         build_title: "Or build from source code with Cargo:",
         footer_desc: "Open Source Native macOS Utility written in Rust.",
-        input_placeholder: "Type here to play musical keyboard notes (e.g. Hello Haptic)..."
+        input_placeholder: "Type here to hear the mechanical switches (e.g. Hello Haptic)..."
     },
     th: {
         nav_features: "ฟังก์ชันหลัก",
@@ -102,7 +102,7 @@ const translations = {
         step3_desc: "เปิดแอป แล้วเปิดสิทธิ์ใน System Settings ➜ Privacy & Security ➜ Accessibility เพื่อให้แอปตรวจจับเมาส์และการพิมพ์ได้",
         build_title: "หรือคอมไพล์เองจาก Source Code ด้วย Cargo:",
         footer_desc: "โอเพนซอร์สแอปพลิเคชันสำหรับ macOS พัฒนาด้วยภาษา Rust",
-        input_placeholder: "พิมพ์ข้อความทดสอบเสียงดนตรีที่นี่ (เช่น สวัสดี Haptic)..."
+        input_placeholder: "พิมพ์ข้อความทดสอบเสียงสวิตช์ที่นี่ (เช่น สวัสดี Haptic)..."
     }
 };
 
@@ -156,6 +156,8 @@ function setLanguage(lang) {
 
 // Web Audio API Synthesizer for Haptic Ticks & Mechanical Switches
 let audioCtx = null;
+let noiseBuffer = null;
+let noiseBufferCtx = null;
 
 function getAudioContext() {
     if (!audioCtx) {
@@ -167,7 +169,42 @@ function getAudioContext() {
     return audioCtx;
 }
 
-let currentProfile = 'piano';
+function getNoiseBuffer(ctx) {
+    if (!noiseBuffer || noiseBufferCtx !== ctx) {
+        const bufferSize = ctx.sampleRate * 0.5;
+        const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+        const output = buffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+            output[i] = Math.random() * 2 - 1;
+        }
+        noiseBuffer = buffer;
+        noiseBufferCtx = ctx;
+    }
+    return noiseBuffer;
+}
+
+function playNoiseBurst(ctx, now, duration, gainVal, filterFreq = 4000) {
+    const src = ctx.createBufferSource();
+    src.buffer = getNoiseBuffer(ctx);
+    
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(filterFreq, now);
+    filter.Q.setValueAtTime(1.5, now);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(gainVal, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+
+    src.start(now);
+    src.stop(now + duration + 0.01);
+}
+
+let currentProfile = 'thock';
 let currentIntensity = 'generic';
 let pulseCount = 0;
 
@@ -198,8 +235,232 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
         const ctx = getAudioContext();
         const now = ctx.currentTime;
         const freq = getKeyFrequency(keyVal, code);
+        const char = (keyVal || 'a').toLowerCase();
+        const kCode = code || '';
 
-        if (currentProfile === 'piano') {
+        if (currentProfile === 'thock') {
+            // Holy Panda / Cream switch: Deep, creamy thock with stabilized housing acoustics
+            if (keyVal === ' ' || kCode === 'Space') {
+                const sub = ctx.createOscillator();
+                const subGain = ctx.createGain();
+                sub.type = 'sine';
+                sub.frequency.setValueAtTime(125, now);
+                subGain.gain.setValueAtTime(0.85, now);
+                subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+                sub.connect(subGain);
+                subGain.connect(ctx.destination);
+                sub.start(now);
+                sub.stop(now + 0.08);
+
+                const cavity = ctx.createOscillator();
+                const cavGain = ctx.createGain();
+                cavity.type = 'sine';
+                cavity.frequency.setValueAtTime(220, now);
+                cavGain.gain.setValueAtTime(0.45, now);
+                cavGain.gain.exponentialRampToValueAtTime(0.001, now + 0.060);
+                cavity.connect(cavGain);
+                cavGain.connect(ctx.destination);
+                cavity.start(now);
+                cavity.stop(now + 0.065);
+
+                const snap = ctx.createOscillator();
+                const snapGain = ctx.createGain();
+                snap.type = 'triangle';
+                snap.frequency.setValueAtTime(1400, now);
+                snapGain.gain.setValueAtTime(0.25, now);
+                snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+                snap.connect(snapGain);
+                snapGain.connect(ctx.destination);
+                snap.start(now);
+                snap.stop(now + 0.02);
+
+                playNoiseBurst(ctx, now, 0.020, 0.15, 2000);
+            } else if (keyVal === 'Enter' || kCode === 'Enter' || keyVal === 'Backspace' || kCode === 'Backspace') {
+                const thock = ctx.createOscillator();
+                const thockGain = ctx.createGain();
+                thock.type = 'sine';
+                thock.frequency.setValueAtTime(180, now);
+                thockGain.gain.setValueAtTime(0.75, now);
+                thockGain.gain.exponentialRampToValueAtTime(0.001, now + 0.060);
+                thock.connect(thockGain);
+                thockGain.connect(ctx.destination);
+                thock.start(now);
+                thock.stop(now + 0.065);
+
+                const snap = ctx.createOscillator();
+                const snapGain = ctx.createGain();
+                snap.type = 'triangle';
+                snap.frequency.setValueAtTime(1600, now);
+                snapGain.gain.setValueAtTime(0.25, now);
+                snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+                snap.connect(snapGain);
+                snapGain.connect(ctx.destination);
+                snap.start(now);
+                snap.stop(now + 0.02);
+
+                playNoiseBurst(ctx, now, 0.018, 0.18, 2400);
+            } else {
+                const charCode = char.charCodeAt(0) || 65;
+                const basePitch = 220 + (charCode % 12) * 12;
+
+                const thock = ctx.createOscillator();
+                const thockGain = ctx.createGain();
+                thock.type = 'sine';
+                thock.frequency.setValueAtTime(basePitch, now);
+                thockGain.gain.setValueAtTime(0.70, now);
+                thockGain.gain.exponentialRampToValueAtTime(0.001, now + 0.048);
+                thock.connect(thockGain);
+                thockGain.connect(ctx.destination);
+                thock.start(now);
+                thock.stop(now + 0.052);
+
+                const snap = ctx.createOscillator();
+                const snapGain = ctx.createGain();
+                snap.type = 'triangle';
+                snap.frequency.setValueAtTime(1900, now);
+                snapGain.gain.setValueAtTime(0.25, now);
+                snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
+                snap.connect(snapGain);
+                snapGain.connect(ctx.destination);
+                snap.start(now);
+                snap.stop(now + 0.015);
+
+                playNoiseBurst(ctx, now, 0.015, 0.16, 3200);
+            }
+
+        } else if (currentProfile === 'blue') {
+            // Cherry MX Blue: Crisp click-jacket snap + housing clack
+            const click = ctx.createOscillator();
+            const clickGain = ctx.createGain();
+            click.type = 'triangle';
+            click.frequency.setValueAtTime(4200, now);
+            clickGain.gain.setValueAtTime(0.65, now);
+            clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
+            click.connect(clickGain);
+            clickGain.connect(ctx.destination);
+            click.start(now);
+            click.stop(now + 0.020);
+
+            const clickHigh = ctx.createOscillator();
+            const clickHighGain = ctx.createGain();
+            clickHigh.type = 'sine';
+            clickHigh.frequency.setValueAtTime(6800, now);
+            clickHighGain.gain.setValueAtTime(0.30, now);
+            clickHighGain.gain.exponentialRampToValueAtTime(0.001, now + 0.010);
+            clickHigh.connect(clickHighGain);
+            clickHighGain.connect(ctx.destination);
+            clickHigh.start(now);
+            clickHigh.stop(now + 0.012);
+
+            const bodyFreq = (keyVal === ' ' || kCode === 'Space') ? 240 : (keyVal === 'Enter' || keyVal === 'Backspace' ? 380 : 560);
+            const clack = ctx.createOscillator();
+            const clackGain = ctx.createGain();
+            clack.type = 'sine';
+            clack.frequency.setValueAtTime(bodyFreq, now);
+            clackGain.gain.setValueAtTime(0.40, now);
+            clackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+            clack.connect(clackGain);
+            clackGain.connect(ctx.destination);
+            clack.start(now);
+            clack.stop(now + 0.050);
+
+            playNoiseBurst(ctx, now, 0.015, 0.22, 5000);
+
+        } else if (currentProfile === 'typewriter') {
+            // Vintage Typewriter: Metal typebar strike + metal ping + tuned bell
+            const strikeFreq = (keyVal === ' ' || kCode === 'Space') ? 160 : 440;
+            const strike = ctx.createOscillator();
+            const strikeGain = ctx.createGain();
+            strike.type = 'triangle';
+            strike.frequency.setValueAtTime(strikeFreq, now);
+            strike.frequency.exponentialRampToValueAtTime(180, now + 0.02);
+            strikeGain.gain.setValueAtTime(0.60, now);
+            strikeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
+            strike.connect(strikeGain);
+            strikeGain.connect(ctx.destination);
+            strike.start(now);
+            strike.stop(now + 0.060);
+
+            const ping = ctx.createOscillator();
+            const pingGain = ctx.createGain();
+            ping.type = 'sine';
+            ping.frequency.setValueAtTime(2600, now);
+            pingGain.gain.setValueAtTime(0.30, now);
+            pingGain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
+            ping.connect(pingGain);
+            pingGain.connect(ctx.destination);
+            ping.start(now);
+            ping.stop(now + 0.070);
+
+            // Tuned bell harmonic
+            const ring = ctx.createOscillator();
+            const ringGain = ctx.createGain();
+            ring.type = 'sine';
+            ring.frequency.setValueAtTime(freq, now);
+            ringGain.gain.setValueAtTime(0.40, now);
+            ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+            ring.connect(ringGain);
+            ringGain.connect(ctx.destination);
+            ring.start(now);
+            ring.stop(now + 0.080);
+
+            playNoiseBurst(ctx, now, 0.025, 0.25, 3000);
+
+        } else if (currentProfile === 'red') {
+            // Cherry MX Red (Linear): Smooth, muffled bottom-out thud
+            const baseFreq = (keyVal === ' ' || kCode === 'Space') ? 180 : 320;
+            const thud = ctx.createOscillator();
+            const thudGain = ctx.createGain();
+            thud.type = 'sine';
+            thud.frequency.setValueAtTime(baseFreq, now);
+            thudGain.gain.setValueAtTime(0.65, now);
+            thudGain.gain.exponentialRampToValueAtTime(0.001, now + 0.038);
+            thud.connect(thudGain);
+            thudGain.connect(ctx.destination);
+            thud.start(now);
+            thud.stop(now + 0.042);
+
+            const sub = ctx.createOscillator();
+            const subGain = ctx.createGain();
+            sub.type = 'sine';
+            sub.frequency.setValueAtTime(baseFreq * 0.5, now);
+            subGain.gain.setValueAtTime(0.35, now);
+            subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+            sub.connect(subGain);
+            subGain.connect(ctx.destination);
+            sub.start(now);
+            sub.stop(now + 0.038);
+
+            playNoiseBurst(ctx, now, 0.012, 0.12, 1800);
+
+        } else if (currentProfile === 'brown') {
+            // Cherry MX Brown (Tactile): Subtle tactile bump clack
+            const baseFreq = (keyVal === ' ' || kCode === 'Space') ? 210 : 480;
+            const bump = ctx.createOscillator();
+            const bumpGain = ctx.createGain();
+            bump.type = 'triangle';
+            bump.frequency.setValueAtTime(1200, now);
+            bumpGain.gain.setValueAtTime(0.35, now);
+            bumpGain.gain.exponentialRampToValueAtTime(0.001, now + 0.018);
+            bump.connect(bumpGain);
+            bumpGain.connect(ctx.destination);
+            bump.start(now);
+            bump.stop(now + 0.020);
+
+            const clack = ctx.createOscillator();
+            const clackGain = ctx.createGain();
+            clack.type = 'sine';
+            clack.frequency.setValueAtTime(baseFreq, now);
+            clackGain.gain.setValueAtTime(0.55, now);
+            clackGain.gain.exponentialRampToValueAtTime(0.001, now + 0.042);
+            clack.connect(clackGain);
+            clackGain.connect(ctx.destination);
+            clack.start(now);
+            clack.stop(now + 0.046);
+
+            playNoiseBurst(ctx, now, 0.016, 0.18, 2800);
+
+        } else if (currentProfile === 'piano') {
             // Concert Grand Piano: 360ms sustain with rich string chorus and soundboard body
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
@@ -272,12 +533,45 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
             hammer.start(now);
             hammer.stop(now + 0.030);
 
-        } else if (currentProfile === 'drum') {
-            // Calibrated Acoustic Drum Kit Web Audio Synthesizer (Reference Standard Frequencies)
-            const char = (keyVal || 'a').toLowerCase();
-            const kCode = code || '';
+        } else if (currentProfile === 'marimba') {
+            // Pure wooden chime / marimba note with rich harmonic overtones
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0.70, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.090);
 
-            // 1. Bass Drum / Kick – Exactly 114 Hz (Spacebar, Enter, B, V, N, C, Z, X)
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(freq * 2.0, now);
+            gain2.gain.setValueAtTime(0.35, now);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.060);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(now);
+            osc2.stop(now + 0.065);
+
+            // Subtle thock click snap
+            const snap = ctx.createOscillator();
+            const snapGain = ctx.createGain();
+            snap.type = 'triangle';
+            snap.frequency.setValueAtTime(Math.min(freq * 4.0, 8000), now);
+            snapGain.gain.setValueAtTime(0.30, now);
+            snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
+            snap.connect(snapGain);
+            snapGain.connect(ctx.destination);
+            snap.start(now);
+            snap.stop(now + 0.015);
+
+        } else if (currentProfile === 'drum') {
+            // Acoustic Drum Kit Web Audio Synthesizer
+            // 1. Kick Drum (Space, Enter, B, V, N, C, Z, X)
             if (keyVal === ' ' || kCode === 'Space' || keyVal === 'Enter' || kCode === 'Enter' || ['b', 'v', 'n', 'c', 'z', 'x'].includes(char)) {
                 const kick = ctx.createOscillator();
                 const kickGain = ctx.createGain();
@@ -301,7 +595,6 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 sub.start(now);
                 sub.stop(now + 0.185);
 
-                // Beater click
                 const click = ctx.createOscillator();
                 const clickGain = ctx.createGain();
                 click.type = 'triangle';
@@ -313,7 +606,7 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 click.start(now);
                 click.stop(now + 0.020);
 
-            // 2. Snare Drum – Exactly 218 Hz (J, F, D, K, S, L, A, ;, ')
+            // 2. Snare Drum (J, F, D, K, S, L, A, ;, ')
             } else if (['j', 'f', 'd', 'k', 's', 'l', 'a', ';', "'"].includes(char)) {
                 const shell = ctx.createOscillator();
                 const shellGain = ctx.createGain();
@@ -326,19 +619,9 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 shell.start(now);
                 shell.stop(now + 0.205);
 
-                // Snare wire rattle
-                const rattle = ctx.createOscillator();
-                const rattleGain = ctx.createGain();
-                rattle.type = 'sawtooth';
-                rattle.frequency.setValueAtTime(3400, now);
-                rattleGain.gain.setValueAtTime(0.65, now);
-                rattleGain.gain.exponentialRampToValueAtTime(0.001, now + 0.140);
-                rattle.connect(rattleGain);
-                rattleGain.connect(ctx.destination);
-                rattle.start(now);
-                rattle.stop(now + 0.145);
+                playNoiseBurst(ctx, now, 0.140, 0.65, 3400);
 
-            // 3. Tom 1 (High Tom) – Exactly 150 Hz (4, Q, E)
+            // 3. Tom 1 (High Tom) (4, Q, E)
             } else if (['4', 'q', 'e'].includes(char)) {
                 const tom = ctx.createOscillator();
                 const tomGain = ctx.createGain();
@@ -362,7 +645,7 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 h2.start(now);
                 h2.stop(now + 0.155);
 
-            // 4. Tom 2 (Mid Tom) – Exactly 128 Hz (5, 6, W, R)
+            // 4. Tom 2 (Mid Tom) (5, 6, W, R)
             } else if (['5', '6', 'w', 'r'].includes(char)) {
                 const tom = ctx.createOscillator();
                 const tomGain = ctx.createGain();
@@ -386,7 +669,7 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 h2.start(now);
                 h2.stop(now + 0.155);
 
-            // 5. Tom 3 (Low Tom) – Exactly 87 Hz (7, 8, U, I)
+            // 5. Tom 3 (Low Tom) (7, 8, U, I)
             } else if (['7', '8', 'u', 'i'].includes(char)) {
                 const tom = ctx.createOscillator();
                 const tomGain = ctx.createGain();
@@ -410,7 +693,7 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 h2.start(now);
                 h2.stop(now + 0.165);
 
-            // 6. Floor Tom 4 – Exactly 65 Hz (1, 2, 3, 9, 0, -, =)
+            // 6. Floor Tom 4 (1, 2, 3, 9, 0, -, =)
             } else if (['1', '2', '3', '9', '0', '-', '='].includes(char)) {
                 const floor = ctx.createOscillator();
                 const floorGain = ctx.createGain();
@@ -434,105 +717,29 @@ function playMechanicalKeySound(keyVal = 'a', code = '') {
                 h2.start(now);
                 h2.stop(now + 0.185);
 
-            // 7. Closed Hi-Hat (H, G, O, P)
-            } else if (['h', 'g', 'o', 'p'].includes(char)) {
-                const hat = ctx.createOscillator();
-                const hatGain = ctx.createGain();
-                hat.type = 'sawtooth';
-                hat.frequency.setValueAtTime(8400, now);
-                hatGain.gain.setValueAtTime(0.65, now);
-                hatGain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
-                hat.connect(hatGain);
-                hatGain.connect(ctx.destination);
-                hat.start(now);
-                hat.stop(now + 0.060);
-            } else if (currentProfile === 'marimba') {
-            // Pure wooden chime / marimba note with rich harmonic overtones
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, now);
-            gain.gain.setValueAtTime(0.70, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.085);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(now);
-            osc.stop(now + 0.09);
+            // 7. Closed Hi-Hat (H, G)
+            } else if (['h', 'g'].includes(char)) {
+                playNoiseBurst(ctx, now, 0.055, 0.65, 8400);
 
-            const osc2 = ctx.createOscillator();
-            const gain2 = ctx.createGain();
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(freq * 2.0, now);
-            gain2.gain.setValueAtTime(0.35, now);
-            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-            osc2.connect(gain2);
-            gain2.connect(ctx.destination);
-            osc2.start(now);
-            osc2.stop(now + 0.065);
+            // 8. Open Hi-Hat (T, Y)
+            } else if (['t', 'y'].includes(char)) {
+                playNoiseBurst(ctx, now, 0.180, 0.65, 7800);
 
-            // Subtle thock click snap
-            const snap = ctx.createOscillator();
-            const snapGain = ctx.createGain();
-            snap.type = 'triangle';
-            snap.frequency.setValueAtTime(Math.min(freq * 4.0, 8000), now);
-            snapGain.gain.setValueAtTime(0.30, now);
-            snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.012);
-            snap.connect(snapGain);
-            snapGain.connect(ctx.destination);
-            snap.start(now);
-            snap.stop(now + 0.015);
+            // 9. Crash / Ride Cymbals (Tab, Escape, [, ], Backspace, Arrow keys, etc.)
+            } else {
+                const bell = ctx.createOscillator();
+                const bellGain = ctx.createGain();
+                bell.type = 'sine';
+                bell.frequency.setValueAtTime(680, now);
+                bellGain.gain.setValueAtTime(0.50, now);
+                bellGain.gain.exponentialRampToValueAtTime(0.001, now + 0.120);
+                bell.connect(bellGain);
+                bellGain.connect(ctx.destination);
+                bell.start(now);
+                bell.stop(now + 0.125);
 
-        } else if (currentProfile === 'blue') {
-            // Clicky Blue Switch + melodic chime
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, now);
-            gain.gain.setValueAtTime(0.55, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(now);
-            osc.stop(now + 0.055);
-
-            // High mechanical click
-            const snap = ctx.createOscillator();
-            const snapGain = ctx.createGain();
-            snap.type = 'triangle';
-            snap.frequency.setValueAtTime(4200, now);
-            snapGain.gain.setValueAtTime(0.50, now);
-            snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
-            snap.connect(snapGain);
-            snapGain.connect(ctx.destination);
-            snap.start(now);
-            snap.stop(now + 0.02);
-
-        } else if (currentProfile === 'typewriter') {
-            // Vintage Typewriter + tuned bell ring
-            const strike = ctx.createOscillator();
-            const strikeGain = ctx.createGain();
-            strike.type = 'triangle';
-            strike.frequency.setValueAtTime(420, now);
-            strike.frequency.exponentialRampToValueAtTime(180, now + 0.02);
-            strikeGain.gain.setValueAtTime(0.55, now);
-            strikeGain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-            strike.connect(strikeGain);
-            strikeGain.connect(ctx.destination);
-            strike.start(now);
-            strike.stop(now + 0.045);
-
-            // Tuned bell ring
-            const ring = ctx.createOscillator();
-            const ringGain = ctx.createGain();
-            ring.type = 'sine';
-            ring.frequency.setValueAtTime(freq, now);
-            ringGain.gain.setValueAtTime(0.45, now);
-            ringGain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
-            ring.connect(ringGain);
-            ringGain.connect(ctx.destination);
-            ring.start(now);
-            ring.stop(now + 0.08);
+                playNoiseBurst(ctx, now, 0.350, 0.70, 5800);
+            }
         }
     } catch (e) {
         console.error("Audio error:", e);
@@ -581,6 +788,17 @@ function playHapticTick() {
 
 // Setup Interactive Elements
 document.addEventListener('DOMContentLoaded', () => {
+    // Audio Autoplay Unlock
+    const unlockAudio = () => {
+        getAudioContext();
+        document.removeEventListener('click', unlockAudio);
+        document.removeEventListener('keydown', unlockAudio);
+        document.removeEventListener('touchstart', unlockAudio);
+    };
+    document.addEventListener('click', unlockAudio);
+    document.addEventListener('keydown', unlockAudio);
+    document.addEventListener('touchstart', unlockAudio);
+
     // 1. Initialize Language
     const initialLang = detectUserLanguage();
     setLanguage(initialLang);
@@ -600,7 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
             profileButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             currentProfile = btn.getAttribute('data-profile');
-            playMechanicalKeySound('enter');
+            playMechanicalKeySound('enter', 'Enter');
         });
     });
 
@@ -643,36 +861,42 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    trackpad.addEventListener('mousemove', (e) => {
-        if (lastX !== 0 && lastY !== 0) {
-            const dx = e.clientX - lastX;
-            const dy = e.clientY - lastY;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            accumulatedDist += dist;
+    if (trackpad) {
+        trackpad.addEventListener('mousemove', (e) => {
+            if (lastX !== 0 && lastY !== 0) {
+                const dx = e.clientX - lastX;
+                const dy = e.clientY - lastY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                accumulatedDist += dist;
 
-            if (accumulatedDist >= DIST_THRESHOLD) {
-                triggerHapticPulse(e.clientX, e.clientY);
-                accumulatedDist = 0;
+                if (accumulatedDist >= DIST_THRESHOLD) {
+                    triggerHapticPulse(e.clientX, e.clientY);
+                    accumulatedDist = 0;
+                }
             }
-        }
-        lastX = e.clientX;
-        lastY = e.clientY;
-    });
+            lastX = e.clientX;
+            lastY = e.clientY;
+        });
 
-    trackpad.addEventListener('mouseleave', () => {
-        lastX = 0;
-        lastY = 0;
-    });
+        trackpad.addEventListener('mouseleave', () => {
+            lastX = 0;
+            lastY = 0;
+        });
 
-    trackpad.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        accumulatedScroll += Math.abs(e.deltaY) + Math.abs(e.deltaX);
+        trackpad.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            accumulatedScroll += Math.abs(e.deltaY) + Math.abs(e.deltaX);
 
-        if (accumulatedScroll >= SCROLL_THRESHOLD) {
+            if (accumulatedScroll >= SCROLL_THRESHOLD) {
+                triggerHapticPulse(e.clientX, e.clientY);
+                accumulatedScroll = 0;
+            }
+        }, { passive: false });
+
+        trackpad.addEventListener('click', (e) => {
             triggerHapticPulse(e.clientX, e.clientY);
-            accumulatedScroll = 0;
-        }
-    }, { passive: false });
+        });
+    }
 
     // 5. Keyboard Interaction
     const demoInput = document.getElementById('demoInput');
@@ -694,27 +918,50 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    demoInput.addEventListener('keydown', (e) => {
+    if (demoInput) {
+        demoInput.addEventListener('keydown', (e) => {
+            playMechanicalKeySound(e.key, e.code);
+            animateKey(e.key);
+        });
+    }
+
+    // Global Key Listener (typing anywhere on page)
+    window.addEventListener('keydown', (e) => {
+        if (e.target === demoInput) return;
+        if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
         playMechanicalKeySound(e.key, e.code);
         animateKey(e.key);
+
+        if (demoInput) {
+            if (e.key === 'Backspace') {
+                demoInput.value = demoInput.value.slice(0, -1);
+            } else if (e.key === 'Enter') {
+                demoInput.value += '\n';
+            } else if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                demoInput.value += e.key;
+            }
+        }
     });
 
     virtualKeys.forEach(k => {
         k.addEventListener('click', () => {
             const keyVal = k.getAttribute('data-key');
-            playMechanicalKeySound(keyVal, '');
+            playMechanicalKeySound(keyVal, keyVal === ' ' ? 'Space' : keyVal);
             animateKey(keyVal);
 
-            if (keyVal === 'Backspace') {
-                demoInput.value = demoInput.value.slice(0, -1);
-            } else if (keyVal === 'Enter') {
-                demoInput.value += '\n';
-            } else if (keyVal === 'Shift') {
-                // Do nothing
-            } else {
-                demoInput.value += keyVal;
+            if (demoInput) {
+                if (keyVal === 'Backspace') {
+                    demoInput.value = demoInput.value.slice(0, -1);
+                } else if (keyVal === 'Enter') {
+                    demoInput.value += '\n';
+                } else if (keyVal === 'Shift') {
+                    // Do nothing
+                } else {
+                    demoInput.value += keyVal;
+                }
+                demoInput.focus();
             }
-            demoInput.focus();
         });
     });
 });
