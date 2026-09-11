@@ -5,67 +5,67 @@
 </p>
 
 <p align="center">
-  <b>เพิ่มสัมผัส Haptic feedback (แรงสั่น/คลิกเบาๆ) ให้กับ Trackpad และเสียงพิมพ์ Mechanical Keyboard บน macOS</b><br />
-  <sub>เขียนด้วย Pure Rust & Native Cocoa • เบา ประหยัดแรม &lt;10MB • รันบน Menu Bar เงียบๆ</sub>
+  <b>Add Haptic feedback (vibrations/subtle clicks) to your Trackpad and Mechanical Keyboard sounds on Mac</b>
+  <sub>Written in Pure Rust & Native Cocoa • Lightweight, efficient <10MB RAM • Runs silently in Menu Bar</sub>
 </p>
 
 ---
 
-## ทำไมถึงทำตัวนี้?
+## Why This?
 
-เวลาใช้ MacBook หรือ Magic Trackpad เรามักจะ scroll หน้ายาวๆ แบบลื่นไหล แต่บางทีก็คิดถึงความรู้สึกตอนหมุน scroll wheel กึกๆ บนเมาส์จริง หรือคิดถึงเสียงพิมพ์คีย์บอร์ด mechanical แบบ thocky แน่นๆ หรือเวลาใช้เมาส์ธรรมดากับ Mac mini / Mac Studio แล้วอยากได้เสียงจำลอง click/tick เหมือนล้อหมุนจริง แอปตัวนี้รวมฟังก์ชันเหล่านี้ไว้ให้ครบในที่เดียว
+When using a MacBook or Magic Trackpad, scrolling through long pages feels smooth, but sometimes you miss that tactile feedback from a physical trackpad or mechanical keyboard. This app brings that satisfying haptic sensation back to your Mac!
 
-## ความสามารถ
+## Features
 
-- **Mouse Movement Haptic** — สั่นเบาๆ ตามระยะทางที่เมาส์เคลื่อนที่
-- **Scroll Wheel Haptic** — สั่นเป็นจังหวะตามความเร็วและระยะการ scroll
-- **Multi-Touch Gestures** — สั่นตอบสนองเวลา Pinch-to-zoom (ซูมภาพ), หมุน 2 นิ้ว (Rotate) หรือปัดหน้าจอ (Swipe)
-- **Haptic Output Mode (เลือกโหมดส่งสัญญาณสัมผัส)**:
-  - **Trackpad Vibration Only (Default)**: สั่น Taptic Engine ของ Trackpad
-  - **Speaker Audio Tick**: จำลองเสียงติ๊กเบาๆ สไตล์ Apple Watch / Digital Crown ผ่านลำโพงแทน (เหมาะมากเวลาใช้เมาส์ธรรมดาหรือไม่มี Trackpad)
-  - **Both (Trackpad + Speaker)**: ทั้งสั่นและมีเสียงติ๊กเบาๆ ควบคู่กัน
-- **Mechanical Keyboard Sounds** — มีเสียงคลิกแป้นพิมพ์ mechanical ขณะพิมพ์แบบ low-latency (<2ms):
-  - **Cream / Holy Panda (Thocky)**: เสียงลึก ทุ้ม นุ่ม แน่น
-  - **Blue Switch (Crisp Click)**: เสียงกริ๊กใส คม ชัดเจน
-  - **Vintage Typewriter**: เสียงแป้นพิมพ์ดีดโบราณ
-  - ปรับระดับความดังได้ 5 ระดับ: 100%, 70%, 40%, 15%, Mute
-- **Menu Bar Controls** — เปิด/ปิด แยกแต่ละฟังก์ชันได้อิสระจากเมนูด้านบนขวา
-- **ปรับแรงสั่นได้ 3 ระดับ**: Light (สั่นเบา), Medium (ปานกลาง), Firm (หนักแน่น)
-- **ปรับความไว (Sensitivity)**: เลือกระยะ threshold ได้ว่าอยากให้สั่นถี่หรือห่างแค่ไหน
-- **รองรับทั้งระบบ** — ทำงานได้กับทุกแอป ไม่ว่าจะอยู่หน้าต่างไหน
+- **Mouse Movement Haptic** — Subtle vibrations that respond to mouse movement distance
+- **Scroll Wheel Haptic** — Rhythmic vibrations based on scroll speed and distance
+- **Multi-Touch Gestures** — Haptic feedback for Pinch-to-zoom, Rotate (2-finger), Swipe gestures and more
+- **Haptic Output Modes**:
+  - **Trackpad Vibration Only (Default)**: Activates the Taptic Engine on your Trackpad
+  - **Speaker Audio Tick**: Simulates subtle click sounds similar to Apple Watch / Digital Crown through your speaker instead
+  - **Both (Trackpad + Speaker)**: Combines both vibration and subtle click sounds together
+- **Mechanical Keyboard Sounds** — Low-latency keyboard click sounds (<2ms) while typing:
+  - **Cream / Holy Panda (Thocky)**: Deep, warm, smooth tones
+  - **Blue Switch (Crisp Click)**: Sharp, clear mechanical clicks
+  - **Vintage Typewriter**: Classic typewriter key sounds
+  - Adjustable volume levels: 100%, 70%, 40%, 15%, Mute
+- **Menu Bar Controls** — Toggle each feature independently from the top-right menu
+- **3 Intensity Levels**: Light, Medium, Firm
+- **Adjustable Sensitivity**: Customize the threshold for how frequently haptic feedback triggers
+- **System-Wide Support** — Works with any app regardless of which window is active
 
-## วิธีติดตั้งและใช้งาน
+## Installation & Usage
 
-1. โหลดไฟล์ `Haptic.dmg` จากหน้า [Releases](https://github.com/iamapinan/haptic/releases)
-2. ลาก `Haptic.app` เข้าโฟลเดอร์ Applications
-3. เปิดแอป จะมีไอคอนสายฟ้า `⚡️` ขึ้นที่ Menu Bar ด้านบนขวา
+1. Download `Haptic.dmg` from [Releases](https://github.com/iamapinan/haptic/releases)
+2. Drag `Haptic.app` into your Applications folder
+3. Open the app — a lightning bolt icon `⚡️` will appear in your top-right Menu Bar
 
-> **หมายเหตุสำหรับการเปิดครั้งแรก**:  
-> macOS จะขอสิทธิ์ **Accessibility (การช่วยการเข้าถึง)** เพื่อให้แอปดักจับตำแหน่งเมาส์, gesture และการพิมพ์ได้ ให้เข้าไปติ๊กเปิดอนุญาตที่:  
-> `System Settings` ➜ `Privacy & Security` ➜ `Accessibility` ➜ เปิดสวิตช์ให้ **Haptic**
+> **Important: First Launch**  
+> macOS will request **Accessibility** permission so the app can monitor mouse and keyboard input.  
+> Grant permission via: `System Settings` ➜ `Privacy & Security` ➜ `Accessibility` ➜ Enable **Haptic**
 
 ---
 
-## Build เองจาก Source Code
+## Build from Source
 
-ถ้าอยากคอมไพล์เอง ต้องลง Rust ไว้ในเครื่องก่อน:
+If you want to compile from source, you'll need Rust installed:
 
 ```bash
 git clone git@github.com:iamapinan/haptic.git
 cd haptic
 
-# รันตรงๆ
+# Run directly
 cargo run --release
 
-# หรือจะแพ็กเป็น .app / .dmg
+# Or bundle as .app / .dmg
 ./bundle.sh
 ./create_dmg.sh
 ```
 
 ## Requirements
 
-- macOS 11.0 ขึ้นไป
-- ใช้งานได้กับทั้ง MacBook Force Touch Trackpad, Apple Magic Trackpad หรือเมาส์ทั่วไป (ผ่านโหมด Speaker Audio Tick)
+- macOS 11.0 or later
+- Compatible with MacBook Force Touch Trackpad, Apple Magic Trackpad, or standard mice (via Speaker Audio Tick mode)
 
 ## License
 
